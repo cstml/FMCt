@@ -1,118 +1,61 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Syntax (FTyp(..), FMCT(..)) where
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
-import Data.String (IsString(..))
-import Control.Monad.State
+module Syntax
+  ( Tt(..)
+  , Tm(..))
+where
+
+import Data.Map (Map)
+import qualified Data.Map as M
+import Data.Text (Text)
 import qualified Data.Text as T
-import Pipes
+import Data.String (IsString(..))
+import Data.Void
 
-data FMCT = A   T.Text            -- Atom
-          | L   T.Text            -- Location 
-          | V   FMCT  FMCT  FTyp  -- Variable
-          | Ap  FMCT  FMCT        -- Application Term Location
-          | Ab  FMCT  FMCT        -- Abstraction Term Location 
-          | X   FMCT  FMCT        --
-          | S                     -- Star 
-          deriving (Eq)
+------------------------------------------
+-- M,N  = * | x : t .N | [M]a.N | a<x>. --
+------------------------------------------
 
-data FTyp = FBool        -- Boolean 
-          | FInt         -- Integer
-          | FStr         -- String
-          deriving (Eq)
+type Vl = (At, Tm)            -- Value
+type Lo = Text               -- Location
+type At = Text               -- Atom
 
-instance Semigroup FMCT where
-  (<>) = bR
+-- | Terms
+data Tm = Va Vl Tt Tm       -- Variable
+        | Ap Tm Lo Tm       -- Application [M]a.N
+        | Ab Tm Lo Tm       -- Abstraction a<x>.N 
+        | S                 -- Star 
+        deriving Eq
 
-instance Monoid FMCT where
-  mempty = S
+-- | Types
+data Tt = Tb                 -- Boolean 
+        | Fi                 -- Integer
+        | Ts                 -- String
+        | St                 -- T
+        deriving Eq
 
--------------------------------------------------------------
--- Show -----------------------------------------------------
-instance Show FMCT where
-  show (A x)     = T.unpack $ T.concat  ["_",x]
-  show (L x)     = T.unpack $ T.concat  ["$",x]
-  show (V b x t) = mconcat [ "(", show x, " :", show t, ")", "@", show b ]
-  show (Ap t l)  = mconcat [ "[", show t, "]", show l ]
-  show (Ab t l)  = mconcat [ "[", show t, "]", show l ]
-  show (X  t1 t2)= mconcat [ show t1, " . ", show t2]
-  show S         = "*"
-
-instance IsString FMCT where
-  fromString = A . T.pack
-
-instance Show FTyp where
-  show FBool = "bO"
-  show FInt  = "iN"
-  show FStr  = "sT"
-
--------------------------------------------------------------
--------------------------------------------------------------
-
-bR :: FMCT -> FMCT -> FMCT  -- BetaReduce
-bR S  x  = x         -- Star just reduces to whatever you give it
-bR x  S  = x 
-bR t1 t2 = X t1 t2   -- Any two terms reduce to an applcation  
-
-
---------------------------------------------------------------
--- Examples
-
-ex1 = "HellO" :: FMCT
-ex2 = V  "A" "3" FStr
-ex3 = Ap ex2     (L "a")
-ex4 = Ab "Hello" (L "b")
-
---------------------------------------------------------------
-type Stack  a = [a] -- Stack
-type Stk a = [a] -- Stack
-type Mem   = (FMCT,Stk FMCT)        -- Mem
-
-push :: FMCT -> State (Stack FMCT) ()
-push a@(Ab t (L l)) = state $ \xs -> ((),a:xs)
-push S              = state $ \xs -> ((),xs)
-push x              = error $ err1 ++ show x
-
-sameLoc :: FMCT -> [FMCT] -> (FMCT,[FMCT])
-sameLoc tt@(Ap t l) []     = (S,[])
-sameLoc tt@(Ap t l) (x@(Ab t' l') : xs)
-  | l == l' = (x,xs)
-                              
-
-pop :: FMCT -> State (Stack FMCT) FMCT
-pop (Ap t (L l)) = state $ \(x:xs)  -> (x,xs)
-
----------------------------- TO DO --------------------------
--- THink of how to evalutate this
-{-
-eval :: FMCT -> State (Stack FMCT) () -> State (Stack FMCT) ()
-eval x st = do
-  y <- st
-  return y
-  push x
-  pop x
-  push S
-
--- push an empty and then evaluate a push
-exEval =  eval (Ab "Hello" (L "b")) (push S)
--}
-
--------------------------------------------------------------
-exRun1 = (runState $ do 
-          push $ Ab "Hello"       (L "b")
-          push $ Ab "How Are you" (L "b")
-          pop  $ Ap "x"           (L "b")
-          push $ Ab "Soooo"       (L "b")
-         ) []
-
---- I think using pipes for this might be a good idea !
-
-loop :: Effect (State (Stack FMCT)) ()
-loop = for (each [1..10]) $ \x ->
-  (lift .  push) $ Ab ((fromString . show) x) (L $ (T.pack . show) x)
+-- | Show
+instance Show Tm where
+  show (Va (b,t) tt t' )
+    | t' /= S   = mconcat [sU, ":", sT, ". ", show t']
+    | otherwise = mconcat [sU, ":", sT]
+    where
+      sU = T.unpack b
+      sT = show t;
+  show (Ap t l t') = if t' /= S then mconcat ["[", show t, "]",T.unpack l, ". ", show t']
+                     else mconcat ["[", show t, "]",T.unpack l ]
+  show (Ab t l t') = mconcat [T.unpack l, "<", show t, ">",  ". ", show t']
+  show S           = "*"
   
+instance Show Tt where
+  show Tb = "b"
+  show Ts = "i"
+  show St = "s"
 
-loopR = ( runState $ runEffect $ loop ) []
+-- | Examples
+ex1 = Va ("x",S) Tb S              -- x:b . *
+ex2 = Ap ex1 "a" ex1           -- [x:b]a.x:b
+ex3 = Ab (Va ("x",S) Tb S) "b" ex2 -- b<x:b>. [x:b]a. x:b
+-------------------------------------------------------------
 
-main = print "Working"
-
-err1 = "Syntax:\n Tried to push wrong term - only abstraction can be pushed \nYou tried to push: "
