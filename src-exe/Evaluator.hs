@@ -18,14 +18,6 @@ push t l (m,b) = case (m !? l) of
                Nothing -> (M.insert l [t]   m, b)
                Just x  -> (M.insert l (t:x) m, b)
 
-sPush :: [Term] -> Lo -> State -> State
-sPush s l (m,b) = (M.insert l s m, b)
-
-pop :: Lo -> State -> State
-pop l st@(m,b) = case (m !? l) of
-            Nothing     -> push St Ho st -- or maybe this should be an error?
-            Just (x:xs) -> sPush xs l st
-
 bind :: Vv -> Lo -> State -> State
 bind vv l st@(m,b) = case (m !? l) of
                    Nothing      -> error $ "Empty Location " ++ show l
@@ -36,10 +28,10 @@ emptyM :: State
 emptyM = (M.empty, M.empty)
 
 evaluate :: Term -> State -> State
-evaluate St       m = m
-evaluate (Va x c) m = evaluate c (push (Va x St) Ho m)
-evaluate (Ab v ty lo tm) m = evaluate tm (bind v lo m)
-evaluate (Ap t l t') m = evaluate t' (push t l m)
+evaluate St       m = m                                -- does nothing
+evaluate (Va x c) m = evaluate c (push (Va x St) Ho m) -- places value @ lambda pos
+evaluate (Ab v ty lo tm) m = evaluate tm (bind v lo m) -- pops and binds the term
+evaluate (Ap t l t') m = evaluate t' (push t l m)      -- pushes the term
 
 ----------------------------------------------------------
 -- -- | Terms                                           --
@@ -54,6 +46,13 @@ ex1 = evaluate St emptyM
 ex2 = foldl1 (flip (.)) (evaluate <$> [t,t,t]) emptyM
   where
     t = (Va "c" St)
+ex4 = foldl1 (flip (.)) (evaluate <$> [t1,t2,t3,t4]) emptyM
+  where
+    t1 = (Ap (Va "c" St) "o" St)
+    t2 = (Ab "x" "int" "o" St)
+    t3 = (Va "c" St)
+    t4 = (Ab "z" "int" Ho St)
+
 ex3 = foldl1 (flip (.)) (evaluate <$> [t1, t2, t2]) emptyM
   where
     t1 = (Ap (Va "c" St) "o" St)

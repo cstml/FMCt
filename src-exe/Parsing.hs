@@ -1,97 +1,87 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Parsing (parseT) where
+module Parsing () where
 
-import Syntax (TT(..), Tm(..))
+import Data.String (IsString(..))
+import Syntax
 import Text.ParserCombinators.Parsec
 
-pGap :: Parser ()
-pGap = do
-  many $ oneOf " .;"
-  return ()
+pSpaces :: Parser ()
+pSpaces = do many $ oneOf " .;"
+             return ()
 
 pText :: Parser String
-pText = do
-  x <- many $ oneOf $ ['a'..'z'] ++ ['A'..'Z']
-  return $ pack x
+pText =  many $ oneOf $ ['a'..'z'] ++ ['A'..'Z']
   
 ---------------------------------------------
--- ":bO"
-pType :: Parser FTyp
+-- ":a"
+pType :: Parser TT
 pType = do
   char ':' >> spaces
-  x <- string "bO"
-    <|> string "iN"
-    <|> string "sT"
+  x <- pText  <|> string "*"  <|> string " "
   case x of
-    "bO" -> return FBool
-    "iN" -> return FInt
-    "sT" -> return FStr
-
--- "$a<a>"
-pApp :: Parser FMCT
+    "*" -> return $ CT Star         -- Star
+    ""  -> return $ fromString "_"  -- To Be Inferred   
+    x   -> return $ fromString x    -- Simple Type
+--xs
+pApp :: Parser Tm
 pApp = do
+  char '['
+  t <- pTerm
+  char ']'
+  l <- pLoc
+  return $ Ap t l St
+
+-- "$a<a:t>"
+pAbs :: Parser Tm
+pAbs = do
   l <- pLoc
   char '<'
-  v <- pFMCT
+  v <- pText
+  spaces
+  t <- pType
+  spaces
   char '>'
-  return $ Ap v l
+  return $ (Ab v t l St)
 
--- "$a"
-pLoc :: Parser FMCT
+-- "a"
+pLoc :: Parser Lo
 pLoc = do
-  char '$'
-  x <- pText
-  return $ L x
-
--- "_dsad"
-pAtom :: Parser FMCT
-pAtom = do
-  char '_'
-  x <- pText
-  return $ A x
-
--- "@loc : Type=
-pVar :: Parser FMCT
+  b <- pText
+  return $ (fromString b)
+  
+-- x
+pVar :: Parser Tm
 pVar = do
-  b  <- char '@' >> pText
-  tt <- pGap >> pType
-  t  <- pGap >> char '=' >> pGap >> pFMCT
-  return $ V (A b) t tt
+--  b  <- char '@' >> pText
+  b  <- pSpaces >> pText
+  return $ Va b St
 
----------------------------------------------------
 -- | FMC Term Parser
-pFMCT :: Parser FMCT
-pFMCT = pVar
-        <|> pAtom
-        <|> pApp
-        <|> do eof >> return S
+pTerm :: Parser Tm
+pTerm = pVar
+  <|> pAbs
+  <|> do eof >> return St
 
 -- | Expression parser
 -- | Concatenates terms into a FMC expression
-pExpr :: Parser FMCT
+pExpr :: Parser [Tm]
 pExpr  = do
-  ( eof >> return S)      -- if you reached EOF return Star
-    <|> do x <- pFMCT     -- otherwise chain expressions
+  ( eof >> return [St] ) -- eof return list
+    <|> do x <- pTerm      -- otherwise chain expressions
            spaces
            y <- pExpr
-           return $ X x y
+           return $  x : y
 
 -- | Used for testing purposes
 main :: String -> IO ()
 main str = do
   print str
-  case parse pExpr "Parser" str of
+  case parse pTerm "Parser" str of
     Left  err -> putStrLn $ "Err!"     ++ show err
     Right val -> putStrLn $ "Parsed: " ++ show val
-
--- | Type Parser 
-parseT :: String -> FMCT
-parseT x = case parse pExpr "FMCT" x of
-  Left  err -> error "Could Not Parse"
-  Right val -> val
   
 ----------------------------------------------------
-test1 = "$a"
+test1 = "a"
 test3 = "a<_>:a"
 test2 = "[x]out"

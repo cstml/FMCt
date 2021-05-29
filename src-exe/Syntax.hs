@@ -4,11 +4,12 @@ module Syntax
   ( TT(..)
   , Tm(..)
   , Vv(..)
+  , Vt(..)
+  , MT(..)
   , Lo(..))
 where
 
 import Data.String (IsString(..))
-import Data.List   (sort)
 
 --------------------------------------
 -- Location = {out, in, rnd, nd, x} --
@@ -22,27 +23,9 @@ data Lo = Out             -- Location
         | L  String         
         deriving (Eq, Ord)
 
-instance Show Lo where
-  show Out   = "out"
-  show In    = "in"
-  show Rnd   = "rnd"
-  show Nd    = "nd"
-  show Ho    = "λ"
-  show (L x) = x
-
 ------------------------------------------
 -- M,N  = * | x.N | [M]a.N | a<x : t>. N --
 ------------------------------------------
-
-type Vv = String            -- Variable Value
-    
-
--- | Terms
-data Tm = Va Vv Tm          -- Variable
-        | Ap Tm Lo Tm       -- Application [M]a.N
-        | Ab Vv TT Lo Tm    -- Abstraction a<x:t>.N 
-        | St                 -- Star 
-        deriving (Eq)
 
 -----------------------------------------
 -- Types                               --
@@ -54,11 +37,25 @@ data Tm = Va Vv Tm          -- Variable
 -- ?t = t_n ... t_1                    --
 -----------------------------------------
 
-infixl 9 :->
+type Vv = String            -- Variable Value
+    
 
-data Vt = CV String         -- A type can be a variable or Star i.e. void
+-- | Terms
+data Tm = Va Vv Tm          -- Variable
+        | Ap Tm Lo Tm       -- Application or Push [M]a.N
+        | Ab Vv TT Lo Tm    -- Abstraction or Pop  a<x:t>.N 
+        | St                -- Star 
+        deriving (Eq)
+
+
+
+-- | Variable types
+-- | A type can be a variable or Star i.e. void
+data Vt = CV String      
         | Star
         deriving (Eq, Ord)
+
+infixl 9 :->
 
 data TT = CT Vt
         | VT Lo Vt
@@ -67,82 +64,75 @@ data TT = CT Vt
 data MT = TT :=> TT
         deriving (Eq, Ord, Show)
 
+-- IsString instances
 instance IsString Lo where
-  fromString "in"  = In
-  fromString "out" = Out
-  fromString "rnd" = Rnd
-  fromString "nd"  = Nd
-  fromString x     = L x
-
-instance Show Vt where
-  show Star   = "*"
-  show (CV a) = a
+  fromString x = case x of
+        "in"  -> In
+        "out" -> Out
+        "rnd" -> Rnd
+        "nd"  -> Nd
+        _     -> L x
 
 instance IsString Vt where
-  fromString []   = Star
-  fromString "*"  = Star
-  fromString x    = CV x
-
-instance Show Tm where
-  show St = "*"
-  show (Ab v t l t') = show l ++ "<" ++ v ++ ":" ++ show t ++ ">" ++ "." ++ show t'
-  show (Ap t l t')   = "[" ++ show t ++ "]" ++ show l ++ "." ++ show t'
-  show (Va v t)      =  v ++ "." ++ show t
+  fromString x = case x of
+    []  -> Star
+    "*" -> Star
+    _   -> CV x
 
 instance IsString TT where
   fromString x = CT $ fromString x
 
+-- Show instances
+instance Show Lo where
+  show x = case x of
+    Out  -> "out"
+    In   -> "in"
+    Rnd  -> "rnd"
+    Nd   -> "nd"
+    Ho   -> "λ"
+    L x  -> x
+  
+instance Show Vt where
+  show x = case x of
+    Star -> "*"
+    CV a -> a
+
+instance Show Tm where
+  show x = case x of
+    Ab v t l t' -> show l ++ "<" ++ v ++ ":" ++ show t ++ ">" ++ "." ++ show t'
+    Ap t l t'   -> "[" ++ show t ++ "]" ++ show l ++ "." ++ show t'
+    Va v t      -> v ++ "." ++ show t
+    St          -> "*"
+
 instance Show TT where
-  show (CT v)      = (show ) v
-  show (VT l v)    = show l ++ mconcat ["(", show v,")"]
-  show (t1 :-> t2) = show t1 ++ " :-> " ++ show t2
-      
+  show x = case x of
+    (CT v)      -> show  v
+    (VT l v)    -> show l ++ mconcat ["(", show v,")"]
+    (t1 :-> t2) -> show t1 ++ " :-> " ++ show t2
+
+-- Eq & Ord
 instance Eq TT where
-  (CT a)     == (CT b)      = a == b
-  (VT l t)   == (VT l' t')  = l == l' && t == t'
-  ti :-> to  == ti' :-> to' = ti == to
+  (CT a)    == (CT b)      = a == b
+  (VT l t)  == (VT l' t')  = l == l' && t == t'
+  ti :-> to == ti' :-> to' = ti == to
+  _         == _           = False
 
 instance Ord TT where
-  compare (CT a) (CT b)      = EQ
+  compare (CT a) x =
+    case x of
+      (CT b) -> EQ
+      _      -> LT
   
   compare (VT l _) (VT l' _)
     | (l < l')  = LT
     | l == l'   = EQ
     | otherwise = GT
-    
-  compare (CT _) (VT _ _ )   = EQ
-  
-  compare (CT _) (_ :-> _)   = EQ
+
+  compare (VT l _) (CT _) = LT
   
   compare (t1 :-> t2) (t1' :-> t2')
-    | t1 == t1' && t2 == t2'  = EQ
-    | t1 <  t1' || t2 < t2'   = LT
-    | otherwise               = GT
+    | t1 == t1' && t2 == t2' = EQ
+    | t1 <  t1' || t2 < t2'  = LT
+    | t1 >  t1' || t2 > t2'  = GT
 
-  compare x y = compare y x
-  
-modulusForm :: TT -> TT
-modulusForm t@(CT _)   = t
-modulusForm t@(VT _ _) = t
-modulusForm (t1 :-> t2)  = runner $ t1 :->  t2
-  where
-    runner = chainer . nrm 
 
-nrm :: TT -> [TT]
-nrm (t1 :-> t2) = sort $ (nrm t1) ++ (nrm t2)
-nrm t           = [t]
-
-chainer :: [TT] -> TT
-chainer []     = CT Star
-chainer (x:[]) = x
-chainer (x:xs) = x :-> chainer xs
-
-flipper :: TT -> TT
-flipper  = chainer . reverse . nrm
-
-machineRun :: TT -> TT -> MT
-machineRun x y  =  z :=> flipper z
-  where z =  modulusForm $ y :->  x
-
-t2 = "a" :-> (VT "a" "3") :-> (VT "a" "2") :-> (VT "b" "5") :-> (VT "a" "1")
-t1 = "a" :-> "b" :-> "c"
