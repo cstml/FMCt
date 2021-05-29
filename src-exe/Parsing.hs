@@ -2,8 +2,7 @@
 
 module Parsing (parseT) where
 
-import Syntax (FTyp(..), FMCT(..))
-import Data.Text as T
+import Syntax (TT(..), Tm(..))
 import Text.ParserCombinators.Parsec
 
 pGap :: Parser ()
@@ -11,7 +10,7 @@ pGap = do
   many $ oneOf " .;"
   return ()
 
-pText :: Parser T.Text
+pText :: Parser String
 pText = do
   x <- many $ oneOf $ ['a'..'z'] ++ ['A'..'Z']
   return $ pack x
