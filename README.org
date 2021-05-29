@@ -1,1 +1,3 @@
-* FMC
+* FMCt
+
+Typed Functional Machine Calculus.
