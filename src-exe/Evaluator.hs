@@ -1,5 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Evaluator where
+module Evaluator
+  ( eval
+  ) where
 
 import Syntax
 import Data.Map (Map, (!?))
@@ -33,16 +35,12 @@ evaluate (Va x c) m = evaluate c (push (Va x St) Ho m) -- places value @ lambda 
 evaluate (Ab v ty lo tm) m = evaluate tm (bind v lo m) -- pops and binds the term
 evaluate (Ap t l t') m = evaluate t' (push t l m)      -- pushes the term
 
-----------------------------------------------------------
--- -- | Terms                                           --
--- data Tm = Va Vv Tm          -- Variable              --
---         | Ap Tm Lo Tm       -- Application [M]a.N    --
---         | Ab Vv TT Lo Tm    -- Abstraction a<x:t>.N  --
---         | St                 -- Star                 --
---         deriving (Eq, Show)                          --
-----------------------------------------------------------
+-- | Takes a term and evaluates it
+eval :: Term -> State
+eval t = evaluate t emptyM
 
 ex1 = evaluate St emptyM
+
 ex2 = foldl1 (flip (.)) (evaluate <$> [t,t,t]) emptyM
   where
     t = (Va "c" St)
