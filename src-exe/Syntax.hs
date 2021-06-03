@@ -15,12 +15,12 @@ import Data.String (IsString(..))
 -- Location = {out, in, rnd, nd, x} --
 --------------------------------------
 
-data Lo = Out             -- Location
-        | In
-        | Rnd
-        | Nd
-        | Ho              -- Default Location
-        | L  String         
+data Lo = Out             -- User Output Location
+        | In              -- User Input Location
+        | Rnd             -- Rnd Input Stream
+        | Nd              -- Non Deterministic Stream 
+        | Ho              -- Default Location:    λ ∈ A
+        | L  String       -- any other location:  x ∈ A
         deriving (Eq, Ord)
 
 ------------------------------------------
@@ -37,8 +37,8 @@ data Lo = Out             -- Location
 -- ?t = t_n ... t_1                    --
 -----------------------------------------
 
+-- | Variable Value 
 type Vv = String            -- Variable Value
-    
 
 -- | Terms
 data Tm = Va Vv Tm          -- Variable
@@ -46,8 +46,6 @@ data Tm = Va Vv Tm          -- Variable
         | Ab Vv TT Lo Tm    -- Abstraction or Pop  a<x:t>.N 
         | St                -- Star 
         deriving (Eq)
-
-
 
 -- | Variable types
 -- | A type can be a variable or Star i.e. void
@@ -57,12 +55,16 @@ data Vt = CV String
 
 infixl 9 :->
 
-data TT = CT Vt
-        | VT Lo Vt
-        | TT :-> TT
+-- | Basic types 
+data TT = CT Vt       -- a constant type 
+        | VT Lo Vt    -- a location parametrised type
+        | TT :-> TT   -- a vector type 
 
-data MT = TT :=> TT
+-- | 
+data MT = TT :=> TT   
         deriving (Eq, Ord, Show)
+
+--------------------------------------------------------------------------------
 
 -- IsString instances
 instance IsString Lo where
