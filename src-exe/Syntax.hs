@@ -73,6 +73,7 @@ instance IsString Lo where
         "out" -> Out
         "rnd" -> Rnd
         "nd"  -> Nd
+        ""    -> Ho
         _     -> L x
 
 instance IsString Vt where
@@ -84,6 +85,10 @@ instance IsString Vt where
 instance IsString TT where
   fromString x = CT $ fromString x
 
+instance IsString Tm where
+  fromString x = Va (fromString x) St
+  
+--------------------------------------------------------------------------------
 -- Show instances
 instance Show Lo where
   show x = case x of

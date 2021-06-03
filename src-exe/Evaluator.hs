@@ -1,6 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Evaluator
   ( eval
+  , State
+  , emptyMem
+  , evaluate
   ) where
 
 import Syntax
@@ -26,32 +29,55 @@ bind vv l st@(m,b) = case (m !? l) of
                    Just []      -> error $ "Empty Location " ++ show l
                    Just (x:xs)  -> (M.insert l xs m, M.insert vv [x] b)
 
-emptyM :: State
-emptyM = (M.empty, M.empty)
+emptyMem :: State
+emptyMem = (M.empty, M.empty)
 
 evaluate :: Term -> State -> State
 evaluate St       m = m                                -- does nothing
-evaluate (Va x c) m = evaluate c (push (Va x St) Ho m) -- places value @ lambda pos
-evaluate (Ab v ty lo tm) m = evaluate tm (bind v lo m) -- pops and binds the term
-evaluate (Ap t l t') m = evaluate t' (push t l m)      -- pushes the term
+evaluate (Va x c) st@(m,b) = evaluate c nt -- places value @ lambda pos
+  where
+    nt = if unbound then (push (Va x St) Ho st)
+         else (push (head et) Ho st)
+    et = case b !? x of
+           Just x -> x
+    unbound = case b !? x of
+                Nothing -> True
+                _       -> False
+evaluate (Ab v ty lo tm) m = evaluate tm (bind v lo m)            -- pops and binds the term
+evaluate (Ap (Va x c) l t') st@(m,b) = evaluate t' (push te l st) -- pushes the bound term
+  where
+    te = case b !? x of
+      Nothing -> St
+      Just x  -> head x 
+evaluate (Ap te l t') st = evaluate t' (push te l st)       -- pushes the term as is
 
--- | Takes a term and evaluates it
-eval :: Term -> State
-eval t = evaluate t emptyM
+-- | Takes a list of terms and evaluates them
+eval :: [Term] -> State
+eval t = foldl1 (flip (.)) (evaluate <$> t) emptyMem
 
-ex1 = evaluate St emptyM
+ex1 = evaluate St emptyMem
 
-ex2 = foldl1 (flip (.)) (evaluate <$> [t,t,t]) emptyM
+ex2 = foldl1 (flip (.)) (evaluate <$> [t,t,t]) emptyMem
   where
     t = (Va "c" St)
-ex4 = foldl1 (flip (.)) (evaluate <$> [t1,t2,t3,t4]) emptyM
+    
+ex4 = foldl1 (flip (.)) (evaluate <$> [t1,t2,t3,t4]) emptyMem
   where
     t1 = (Ap (Va "c" St) "o" St)
     t2 = (Ab "x" "int" "o" St)
     t3 = (Va "c" St)
     t4 = (Ab "z" "int" Ho St)
 
-ex3 = foldl1 (flip (.)) (evaluate <$> [t1, t2, t2]) emptyM
+ex3 = foldl1 (flip (.)) (evaluate <$> [t1, t2, t2]) emptyMem
   where
     t1 = (Ap (Va "c" St) "o" St)
     t2 = (Ab "x" "int" "o" St) 
+
+ex5 = eval [t3, t2, t5, t6]
+  where
+    t1 = (Ap "c" "o" St)
+    t2 = (Ab "x" "int" "" St)
+    t3 = (Va "c" St)
+    t4 = (Ab "z" "int" Ho St)
+    t5 = (Va "c" St)
+    t6 = (Ap "x" "out" St)
