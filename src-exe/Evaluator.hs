@@ -16,9 +16,9 @@ type Binds  = Map Vv [Term]
 type State  = (Memory, Binds)
 
 push :: Term -> Lo -> State -> State
-push t In _ = error $ "Cannot push term: " ++ show t ++ " to in"
+push t In  _ = error $ "Cannot push term: " ++ show t ++ " to in"
 push t Rnd _ = error $ "Cannot push term: " ++ show t ++ " to rnd"
-push t Nd _ = error $ "Cannot push term: " ++ show t ++ " to nd"
+push t Nd  _ = error $ "Cannot push term: " ++ show t ++ " to nd"
 push t l (m,b) = case (m !? l) of
                Nothing -> (M.insert l [t]   m, b)
                Just x  -> (M.insert l (t:x) m, b)
@@ -33,22 +33,28 @@ emptyMem :: State
 emptyMem = (M.empty, M.empty)
 
 evaluate :: Term -> State -> State
-evaluate St       m = m                                -- does nothing
+
+evaluate St       m = m              -- does nothing
+
 evaluate (Va x c) st@(m,b) = evaluate c nt -- places value @ lambda pos
   where
-    nt = if unbound then (push (Va x St) Ho st)
-         else (push (head et) Ho st)
+    nt = if unbound then push (Va x St) Ho st
+         else push (head et) Ho st
     et = case b !? x of
            Just x -> x
+           _      -> error "This should have never happened - pushing unbound"
     unbound = case b !? x of
                 Nothing -> True
                 _       -> False
+                
 evaluate (Ab v ty lo tm) m = evaluate tm (bind v lo m)            -- pops and binds the term
+
 evaluate (Ap (Va x c) l t') st@(m,b) = evaluate t' (push te l st) -- pushes the bound term
   where
     te = case b !? x of
       Nothing -> St
-      Just x  -> head x 
+      Just x  -> head x
+      
 evaluate (Ap te l t') st = evaluate t' (push te l st)       -- pushes the term as is
 
 -- | Takes a list of terms and evaluates them

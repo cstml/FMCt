@@ -65,7 +65,6 @@ data MT = TT :=> TT
         deriving (Eq, Ord, Show)
 
 --------------------------------------------------------------------------------
-
 -- IsString instances
 instance IsString Lo where
   fromString x = case x of
