@@ -4,6 +4,7 @@ module Parsing
   ( parseFMC
   )where
 
+import Evaluator
 import Data.String (IsString(..))
 import Syntax
 import Text.ParserCombinators.Parsec
@@ -15,28 +16,26 @@ pSpaces = do many $ oneOf " .;"
              return ()
 
 pText :: Parser String
-pText =  many $ oneOf $ ['a'..'z'] ++ ['A'..'Z']
+pText =  many $ oneOf $ ['a'..'z'] ++ ['A'..'Z'] ++ ['0' .. '9'] ++ "+"
   
 --------------------------------------------------------------------------------
 -- | Type Parser
 pType :: Parser TT
-pType = do try $ char ':' >> spaces >> char '(' >> spaces
-           x <- pType'
-           spaces >> char ')'
+pType = do char ':' >> spaces
+           x <- between (char '(' >> spaces) (spaces >> char ')') pType'                      
            return x
            
 pType' =  try pVectorType
           <|> try pLocationType
-          <|> try pConstantType 
+          <|> try pConstantType
+--          <|> try pMachineType
 
 -- :(Int)
 pConstantType :: Parser TT
 pConstantType = do
-  char '(' >> spaces   
   x <-  try $ string "*"
         <|> string " " <|> string "_"
         <|> pText
-  pSpaces >> char ')'
   case x of
     "*" -> return $ CT Star         -- Star
     ""  -> return $ fromString "_"  -- To Be Inferred
@@ -62,60 +61,51 @@ pVectorType = do
 --------------------------------------------------------------------------------
 -- | Machine Type Parser
 pMachineType :: Parser MT
-pMachineType = do  char ':' >> spaces >> char '('
-                   x <- pType'
-                   spaces >> string ":=>" >> spaces
-                   y <- pType'
-                   spaces >> char ')'
-                   return $ x :=> y
+pMachineType = do x <- spaces >> pType'
+                  spaces >> string ":=>" >> spaces
+                  y <- spaces >> pType'
+                  spaces >> char ')'
+                  return $ x :=> y
 
 --------------------------------------------------------------------------------
 -- "a"
 pLoc :: Parser Lo
 pLoc = do
-  b <- pText
+  b <- between spaces spaces pText
   return $ (fromString b)
 
---xs
+--[x]loc
 pApp :: Parser Tm
 pApp = do
-  char '['
-  t <- pTerm
-  char ']'
+  t <- between (char '[') (char ']') pTerm
   l <- pLoc
   return $ Ap t l St
 
 -- "a<a:t>"
 pAbs :: Parser Tm
-pAbs = do
+pAbs = try $ do 
   l <- pLoc
   char '<'
-  v <- pText
-  spaces
-  t <- pType
-  spaces
-  char '>'
-  return $ (Ab v t l St)
+  v <- spaces >> pText
+  t <- spaces >> pType 
+  spaces >> char '>'
+  return $ Ab v t l St
   
 -- x
 pVar :: Parser Tm
 pVar = do
---  b  <- char '@' >> pText
-  pSpaces
-  b  <- pText
+  b  <- spaces >> pText
   return $ Va b St
 
 -- | FMC Term Parser
 pTerm :: Parser Tm
-pTerm = try pAbs
-        <|> try pAbs
-        <|> try pVar
-        <|> do eof >> return St
+pTerm =  do eof >> return St
+         <|> pApp <|> pAbs  <|> pVar 
 
 pTerms :: Parser [Tm]
 pTerms = do eof >> return []
-         <|>  do x <- pTerm
-                 y <- pTerms
+         <|>  do x <- pTerm 
+                 y <- pSpaces >> pTerms
                  return $ x : y
          
 
@@ -131,10 +121,18 @@ parseFMC :: String -> [Tm]
 parseFMC x = case parse pTerms "Parser" x of
   Left err -> error $ "Err!"     ++ show err
   Right v  -> v
-  
+
+rStar :: [Tm] -> Tm
+rStar [] = St
+rStar (x:xs) = case x of
+                 Va x St     -> Va x (rStar xs)
+                 Ap t l St   -> Ap t l (rStar xs)
+                 Ab v t l St -> Ab v t l (rStar xs)
+
 ----------------------------------------------------
 test1 = "a"
 test3 = "a<_>:a"
 test2 = "[x]out"
 testT1 = ":(( * ):-> (Int)out :-> (Int))" -- (*) :-> out(Int) :-> (Int)
 testMT1 = ":((Int)in :=> (Int)out)" -- (*) :-> out(Int) :-> (Int)
+test4 = " 2 . 2 . + "
