@@ -124,7 +124,7 @@ instance Show TT where
   show x = case x of
     (CT v)      -> show  v
     (VT l v)    -> show l ++ mconcat ["(", show v,")"]
-    (t1 :-> t2) -> show t1 ++ " :-> " ++ show t2
+    (t1 :-> t2) -> show t1 ++ " -> " ++ show t2
 
 -- Eq & Ord
 instance Eq TT where
