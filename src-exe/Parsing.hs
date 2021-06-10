@@ -117,6 +117,7 @@ main str = do
     Left  err -> putStrLn $ "Err!"     ++ show err
     Right val -> putStrLn $ "Parsed: " ++ show val
 
+-- | Main function that takes a String and parses it to a list of FMC Terms.
 parseFMC :: String -> [Tm]
 parseFMC x = case parse pTerms "Parser" x of
   Left err -> error $ "Err!"     ++ show err

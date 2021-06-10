@@ -15,12 +15,12 @@ import Data.String (IsString(..))
 -- Location = {out, in, rnd, nd, x} --
 --------------------------------------
 
-data Lo = Out             -- User Output Location
-        | In              -- User Input Location
-        | Rnd             -- Rnd Input Stream
-        | Nd              -- Non Deterministic Stream 
-        | Ho              -- Default Location:    λ ∈ A
-        | L  String       -- any other location:  x ∈ A
+data Lo = Out             -- ^ User Output Location
+        | In              -- ^ User Input Location
+        | Rnd             -- ^ Rnd Input Stream
+        | Nd              -- ^ Non Deterministic Stream 
+        | Ho              -- ^ Default Location:   λ ∈ A
+        | L  String       -- ^ any other location: x ∈ A
         deriving (Eq, Ord)
 
 -------------------------------------------
@@ -37,31 +37,41 @@ data Lo = Out             -- User Output Location
 -- ?t = t_n ... t_1                    --
 -----------------------------------------
 
--- | Variable Value 
-type Vv = String            -- Variable Value
+-- | Variable Value Type 
+type Vv = String            -- ^ Variable Value
 
--- | Terms
-data Tm = Va Vv Tm          -- Variable
-        | Ap Tm Lo Tm       -- Application or Push [M]a.N
-        | Ab Vv TT Lo Tm    -- Abstraction or Pop  a<x:t>.N 
-        | St                -- Star 
+-- | FMC Terms Type
+data Tm = Va Vv Tm          -- ^ Variable
+        | Ap Tm Lo Tm       -- ^ Application or Push [M]a.N
+        | Ab Vv TT Lo Tm    -- ^ Abstraction or Pop  a<x:t>.N 
+        | St                -- ^ Star 
         deriving (Eq)
 
 -- | Variable types
--- | A type can be a variable or Star i.e. void
-data Vt = CV String      
-        | Star
+data Vt = CV String         -- ^ a variable -- which names the constant,
+        | Star              -- ^ Star i.e. void.
         deriving (Eq, Ord)
 
 infixl 9 :->
 
--- | Basic types 
-data TT = CT Vt       -- a constant type 
-        | VT Lo Vt    -- a location parametrised type
-        | TT :-> TT   -- a vector type 
+-- | Basic Types
+data TT = CT Vt       -- ^ a constant type 
+        | VT Lo Vt    -- ^ a location parametrised type
+        | TT :-> TT   -- ^ a vector type 
 
--- | 
-data MT = TT :=> TT   
+infixl 9 :=>
+
+-- | Machine Types will show what the FMC will be receiving as an input and what
+-- it will be producing as an output.
+--
+-- Example:
+--
+-- >>> (CT "c") :=> (CT Star)
+-- (c :=> *)
+--
+-- >>> (CT "c") :-> (CT "int) :=> (CT Star)
+-- (c :-> int :=> *)
+data MT = TT :=> TT   -- ^ takes two basic types one input and one output
         deriving (Eq, Ord, Show)
 
 --------------------------------------------------------------------------------

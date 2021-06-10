@@ -48,7 +48,7 @@ Ex. 0: What types mean:
 
 x: a :-> b :-> c :=> d :-> e
 ---
-x: a ∨ (b ∨ c)  |-  d ∧ e
+x: a  ∧ (b ∧ c)  |-  d ∧ e
 
 y: * :=> a
 ---
@@ -71,13 +71,10 @@ y: (e :-> d       :=> f)
 x >>> y : ( a :-> b :-> c :=> f)
 
 Or:
-x: (a ∨ b ∨ c |-  d) |- e
-y: (e ∨ d     |-  f)
+x: a ∨ b ∨ c |-  d ∧ e
+y: e ∨ d     |-  f
 ---
-x >>> y : ((a ∨ b ∨ c |- d) |- e) >>> ((e ∨ d) |-  f)
-x >>> y : (((a ∨ b ∨ c |- d) |- (e |- e ) >>>  (d |-  f)
-        :   a ∨ b ∨ c |- d  ∧  d |-  f)
-        :   a ∨ b ∨ c |- f)
+x >>> y : a ∨ b ∨ c |- f)
 
 Rewritten:
 x: !A :=> !B
@@ -108,16 +105,4 @@ x: !A :=> !B :-> f
 y: ?B :=> !C
 x >>> y : !A :-> ?B :=> !B :-> f :-> !C
 
---------------------
-Ex. 2: Currying
-x: a :->  b :-> c |:=>| d :-> e
-x: a :=> (b :-> c |:=>| d :-> e
-x: a :=>  b :=> c |:=>| d :-> e
-x: a :->  b :=> c |:=>| d :-> e
- a ∨ b ∨ c            |-  d ∧ e
-(a ∨ b ∨ c) ∧ d       |-  e
-((a ∨ b ∨ c) ∧ d) ∧ e |- *
-((a ∧ d) ∨ (b ∧ d) ∨ (c ∧ d)) ∧ e |- *
-(a ∧ d ∧ e) ∨ (b ∧ d ∧ e) ∨ (c ∧ d ∧ e) |- *
----
 -}
