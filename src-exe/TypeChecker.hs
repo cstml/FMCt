@@ -1,46 +1,53 @@
 {-# LANGUAGE OverloadedStrings #-}
 module TypeChecker where
 import Syntax
+import Data.List (sort)
+import Data.Semigroup
+import Data.Monoid
+import qualified Data.Map  as M
+import           Data.Map  (Map, (!?))
 
--- | takes any type and puts in the modulus form
--- | i.e. sorts by location while maintaining the order  
-modulusForm :: TT -> TT
-modulusForm t@(CT _)   = t
-modulusForm t@(VT _ _) = t
-modulusForm (t1 :-> t2)  = runner $ t1 :->  t2
-  where
-    runner = chainer . nrm 
 
-sort []     = []
-sort (x:xs) = (sort . smaller) x ++ x : equal x ++ (sort . larger) x
-  where
-    smaller x = [ y | y <- xs, compare y x == LT]
-    equal   x = [ y | y <- xs, compare y x == EQ]
-    larger  x = [ y | y <- xs, compare y x == GT]    
+instance Semigroup T where
+  (T E) <> t  = t
+  t <> (T E)  = t 
+  t1@(T t) <> t2@(T t') = TV $ t1 : t2 :[]
+  t1@(T t) <> t2@(TV t') = TV $ t1 : t'
+  t1@(TV t) <> t2@(T t') = TV $ t ++ [t2]
+  t1@(TV t) <> t2@(TV t') = TV $ t ++ t'
 
--- | Breaks down a type into a list of constant types
--- | sorted in modulus equivalent form.
-nrm :: TT -> [TT]
-nrm (t1 :-> t2) = sort $ (nrm t1) ++ (nrm t2)
-nrm t           = [t]
+instance Monoid T where
+  mempty = T E
 
--- | Chains type together into their vector modulus form.
-chainer :: [TT] -> TT
-chainer []     = CT Star
-chainer (x:[]) = x
-chainer (x:xs) = x :-> chainer xs
+-- | Type difference 
+(>\) :: T -> T -> T
+t >\ (T E) = t
+(T E) >\ _ = T E
+(TV []) >\ _ = T E
+t@(TV(x:xs)) >\ (TV(x':xs'))
+  | x == x'   = (TV xs) >\ (TV xs')
+  | otherwise = t
+  
 
--- | Flips from type !a to type ?a
-flipper :: TT -> TT
-flipper  = chainer . reverse . nrm
+sL :: Lo -> T -> L
+sL l t = L $ M.fromList [(l,t)]
 
-machineRun :: TT -> TT -> MT
-machineRun x y  =  z :=> flipper z
-  where z =  modulusForm $ y :->  x
+mCL :: L -> L -> L
+mCL (L m) (L m') = L $ M.unionWith (<>) m m'
 
--- example typings
-t2 = "a" :-> (VT "a" "3") :-> (VT "a" "2") :-> (VT "b" "5") :-> (VT "a" "1")
-t1 = "a" :-> "b" :-> "c"
+mDL :: L -> L -> L
+mDL (L m) (L m') = L $ M.unionWith (>\) m m'
+
+-- Examples:
+ex1 = T ( C "a") <> T ( C "a") <> mempty <> T ( C "a") -- example simple type
+ex1' = T ( C "a") <> T ( C "b") <> mempty <> T ( C "c") -- example simple type
+ex2 = sL La ex1  -- location parametrised types
+ex3 = sL Ho ex1  -- location parametrised types
+ex4 = mCL ex2 ex3 -- merging location parametrised types
+ex5 = mDL ex4 ex4 -- merging location parametrised types
+ex6 = ((WT ex4) :=> (WT ex4)) == ((WT ex4) :=> (WT (sL Ho $ T E))) -- comparisson of types works
+ex7 = let a = ((WT ex4) :=> (WT ex4)) in a == a 
+
 
 {-
 --------------------
