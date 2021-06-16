@@ -111,4 +111,5 @@ instance Show TT where
 
 instance Show L where
   show (L x) = mconcat $ (\(x,y) -> show x ++ "(" ++ show y ++ ") ")  <$>  M.toAscList x
---------------------------------------------------------------------------------
+
+
