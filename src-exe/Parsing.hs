@@ -1,14 +1,14 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Parsing
-  ( parseFMC
-  )where
+--  ( parseFMC )
+where
 
 import Evaluator
 import Data.String (IsString(..))
 import Syntax
 import Text.ParserCombinators.Parsec
-
+{-
 --------------------------------------------------------------------------------
 -- Aux 
 pSpaces :: Parser ()
@@ -43,12 +43,13 @@ pConstantType = do
     _   -> return $ fromString x    -- Simple Type
 
 -- :(Int)a
+{-
 pLocationType :: Parser TT
 pLocationType = do
   CT x <- pConstantType
   l    <- pText
   return $ VT (fromString l) x
-
+-}
 -- : (Int)a :-> (Int)b
 pVectorType :: Parser TT
 pVectorType = do
@@ -60,7 +61,7 @@ pVectorType = do
 
 --------------------------------------------------------------------------------
 -- | Machine Type Parser
-pMachineType :: Parser MT
+pMachineType :: Parser TT
 pMachineType = do x <- spaces >> pType'
                   spaces >> string ":=>" >> spaces
                   y <- spaces >> pType'
@@ -79,28 +80,28 @@ pApp :: Parser Tm
 pApp = do
   t <- between (char '[') (char ']') pTerm
   l <- pLoc
-  return $ Ap t l St
-
+  return $ P t l St
+{-
 -- "a<a:t>"
-pAbs :: Parser Tm
-pAbs = try $ do 
+pB s :: Parser Tm
+pB s = try $ do 
   l <- pLoc
   char '<'
   v <- spaces >> pText
   t <- spaces >> pType 
   spaces >> char '>'
-  return $ Ab v t l St
-  
+  return $ B  v t l St
+-}  
 -- x
 pVar :: Parser Tm
 pVar = do
   b  <- spaces >> pText
-  return $ Va b St
-
+  return $ V b St
+{-
 -- | FMC Term Parser
 pTerm :: Parser Tm
 pTerm =  do eof >> return St
-         <|> pApp <|> pAbs  <|> pVar 
+         <|> pApp <|> pB s  <|> pVar 
 
 pTerms :: Parser [Tm]
 pTerms = do eof >> return []
@@ -126,9 +127,9 @@ parseFMC x = case parse pTerms "Parser" x of
 rStar :: [Tm] -> Tm
 rStar [] = St
 rStar (x:xs) = case x of
-                 Va x St     -> Va x (rStar xs)
-                 Ap t l St   -> Ap t l (rStar xs)
-                 Ab v t l St -> Ab v t l (rStar xs)
+                 V x St     -> V x (rStar xs)
+                 P t l St   -> P t l (rStar xs)
+                 B  v t l St -> B  v t l (rStar xs)
 
 ----------------------------------------------------
 test1 = "a"
@@ -137,3 +138,5 @@ test2 = "[x]out"
 testT1 = ":(( * ):-> (Int)out :-> (Int))" -- (*) :-> out(Int) :-> (Int)
 testMT1 = ":((Int)in :=> (Int)out)" -- (*) :-> out(Int) :-> (Int)
 test4 = " 2 . 2 . + "
+-}
+-}

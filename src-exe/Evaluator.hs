@@ -7,6 +7,7 @@ module Evaluator
   ) where
 
 import Syntax
+import TypeChecker
 import Data.Map (Map, (!?))
 import qualified Data.Map as M
 import Data.Char
@@ -64,17 +65,17 @@ add st@(m,b) = t
     t = case m !? Ho of
       Just []       -> error "Empty Stack"
       Just (x:y:xs) -> case (x, y) of
-                         (Va x _ , Va y _) -> push (Va (x `adds` y) St) Ho (M.insert Ho xs m, b)
+                         (V x _ , V y _) -> push (V (x `adds` y) St) Ho (M.insert Ho xs m, b)
         
 evaluate :: Term -> State -> State
-evaluate (Va "+" c) m = evaluate c $ add (pop 2 Ho m)
+evaluate (V "+" c) m = evaluate c $ add (pop 2 Ho m)
   where
     intermediary = add $ pop 2 Ho m
     
 evaluate St         m = m                  -- does nothing
-evaluate (Va x c) st@(m,b) = evaluate c nt -- places value @ lambda pos
+evaluate (V x c) st@(m,b) = evaluate c nt -- places value @ lambda pos
   where
-    nt = if unbound then push (Va x St) Ho st
+    nt = if unbound then push (V x St) Ho st
          else push (head et) Ho st
     et = case b !? x of
            Just x -> x
@@ -82,13 +83,13 @@ evaluate (Va x c) st@(m,b) = evaluate c nt -- places value @ lambda pos
     unbound = case b !? x of
                 Nothing -> True
                 _       -> False                
-evaluate (Ab v ty lo tm) m = evaluate tm (bind v lo m)            -- pops and binds the term
-evaluate (Ap (Va x c) l t') st@(m,b) = evaluate t' (push te l st) -- pushes the bound term
+evaluate (B  v ty lo tm) m = evaluate tm (bind v lo m)            -- pops and binds the term
+evaluate (P (V x c) l t') st@(m,b) = evaluate t' (push te l st) -- pushes the bound term
   where
     te = case b !? x of
       Nothing -> St
       Just x  -> head x      
-evaluate (Ap te l t') st = evaluate t' (push te l st)       -- pushes the term as is
+evaluate (P te l t') st = evaluate t' (push te l st)       -- pushes the term as is
               
 emptyMem :: State
 emptyMem = (M.empty, M.empty)
@@ -107,27 +108,27 @@ ex1 = evaluate St emptyMem
 
 ex2 = foldl1 (flip (.)) (evaluate <$> [t,t,t]) emptyMem
   where
-    t = (Va "c" St)
+    t = (V "c" St)
     
 ex4 = foldl1 (flip (.)) (evaluate <$> [t1,t2,t3,t4]) emptyMem
-  where
-    t1 = (Ap (Va "c" St) "o" St)
-    t2 = (Ab "x" "int" "o" St)
-    t3 = (Va "c" St)
-    t4 = (Ab "z" "int" Ho St)
+   where
+     t1 = (P (V "c" St) (Lo "o") St)
+     t2 = (B  "x"  (WT (sL Ho (T $ C "int"))) (Lo "o") St)
+     t3 = (V "c" St)
+     t4 = (B  "z" (WT (sL Ho (T $ C "int"))) Ho St)
 
-ex3 = foldl1 (flip (.)) (evaluate <$> [t1, t2, t2]) emptyMem
-  where
-    t1 = (Ap (Va "c" St) "o" St)
-    t2 = (Ab "x" "int" "o" St) 
+-- ex3 = foldl1 (flip (.)) (evaluate <$> [t1, t2, t2]) emptyMem
+--   where
+--     t1 = (P (V "c" St) "o" St)
+--     t2 = (B  "x" "int" "o" St) 
 
-ex5 = eval [t3, t2, t5, t6]
-  where
-    t1 = (Ap "c" "o" St)
-    t2 = (Ab "x" "int" "" St)
-    t3 = (Va "c" St)
-    t4 = (Ab "z" "int" Ho St)
-    t5 = (Va "c" St)
-    t6 = (Ap "x" "out" St)
+-- ex5 = eval [t3, t2, t5, t6]
+--   where
+--     t1 = (P "c" "o" St)
+--     t2 = (B  "x" "int" "" St)
+--     t3 = (V "c" St)
+--     t4 = (B  "z" "int" Ho St)
+--     t5 = (V "c" St)
+--     t6 = (P "x" "out" St)
 
-ex6 = evalIO $ eval [Va "2" $ Va "232132" $ Va "+" $ Ab "out" "Int" Ho $ Ap "out" "out" $ St ]
+-- ex6 = evalIO $ eval [V "2" $ V "232132" $ V "+" $ B "out" "Int" Ho $ P "out" "out" $ St ]

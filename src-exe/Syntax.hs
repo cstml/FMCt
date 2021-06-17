@@ -4,6 +4,7 @@ module Syntax
   , TT(..)
   , Tm(..)
   , Vt(..)
+  , Vv(..)
   , Lo(..) )
 where
 import           Data.Monoid 
@@ -24,37 +25,33 @@ type Vv = String            -- ^ Variable Value
 -- | FMC Terms Type
 data Tm = V Vv  Tm          -- ^ Variable
         | P Tm Lo Tm       -- ^ Application or Push [M]a.N
-        | B Vv  TT Lo Tm    -- ^ Abstraction or Pop  a<x:t>.N 
+        | B Vv TT Lo Tm    -- ^ Abstraction or Pop  a<x:t>.N 
         | St                -- ^ Star 
         deriving (Eq)
 
 -------------------------------------------
---  Simple Types == a | abc | e          --
+--  Simple Types == a | a b c | e          --
 -------------------------------------------
 -- | Constant Variable types
 data Vt = C String          -- ^ a type variable
         | E                 -- ^ the empty - special constant type
         deriving Eq
-
--- | The order of any Variable type is at it appears
-instance Ord Vt where
-  compare _ _ = EQ        -- ^ all the terms are ordered already 
   
 -- | Simple Types 
 data T  = T  Vt           -- ^ a constant type
         | TV [T]          -- ^ a list of types
-        deriving (Eq, Ord)
+        deriving Eq
 
 --------------------------------------------
 -- Location = {out, in, rnd, nd, x, γ, λ} --
 --------------------------------------------
 -- | Predefined Locations of the FMC together with general locations.
-data Lo = Out             -- ^ User Output Location
-        | In              -- ^ User Input Location
-        | Rnd             -- ^ Rnd Input Stream
-        | Nd              -- ^ Non Deterministic Stream
-        | Ho              -- ^ Home stack : γ ∈ A
-        | La              -- ^ Default push Location:   λ ∈ A
+data Lo = Out              -- ^ User Output Location
+        | In               -- ^ User Input Location
+        | Rnd              -- ^ Rnd Input Stream
+        | Nd               -- ^ Non Deterministic Stream
+        | Ho               -- ^ Home stack : γ ∈ A
+        | La               -- ^ Default push Location:   λ ∈ A
         | Lo  String       -- ^ any other location: x ∈ A
         deriving (Eq, Ord)
 
@@ -63,15 +60,15 @@ data Lo = Out             -- ^ User Output Location
 -----------------------------------------------------------------------
 -- | Location Parametrised Types
 newtype L  = L {getMap :: Map Lo T}
-  deriving (Eq)
+  deriving Eq
 
 -- | Type constructor for a FMTt type
 infixl 9 :=>
   
 -- | FMCt Types
-data TT  = TT :=> TT  -- ^ a simple  FMCt  Type
-         | WT L       -- ^ a wrapped Value Type 
-         | WF TT      -- ^ a wrapped FMCt  Type
+data TT  = TT :=> TT  -- ^ a FMCt        Type
+         | WT L       -- ^ a Location    Type 
+         | WF TT      -- ^ a nested FMCt Type
          deriving Eq
   
 --------------------------------------------------------------------------------
@@ -107,7 +104,7 @@ instance Show TT where
   show x = case x of
     WT x    -> show x
     WF x    -> "(" ++ show x ++ ")"
-    x :=> y -> show x ++ " => " ++ show y 
+    x :=> y -> "(" ++ show x ++ " => " ++ show y ++ ")"
 
 instance Show L where
   show (L x) = mconcat $ (\(x,y) -> show x ++ "(" ++ show y ++ ") ")  <$>  M.toAscList x

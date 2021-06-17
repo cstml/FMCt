@@ -4,7 +4,7 @@ module Examples where
 import Evaluator
 import Syntax
 import Pretty 
-
+{-
 -- Simple Terms
 ex1 = (Va "a" St)
 ex2 = (Va "a" ex1)
@@ -23,3 +23,4 @@ eex2 = foldl1 (flip (.)) (evaluate <$> [t,t,t]) emptyMem
 
 -- Pretty Printer
 peex2 = printStack eex2
+-}
