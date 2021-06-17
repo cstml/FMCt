@@ -39,7 +39,6 @@ executable FMCt
                        containers >= 0.6.2.1,
                        mtl >= 2.2.2,
                        parsec,
-                       pipes >= 4.3.16,
                        text >= 1.2.4.1
 
   -- Directories containing source files.
