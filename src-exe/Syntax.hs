@@ -1,10 +1,14 @@
+{-# LANGUAGE TypeOperators #-}
 module Syntax
   ( T(..)
   , VT(..)
   , TT(..)
   , Tm(..)
   , Vv(..)
-  , Lo(..) )
+  , Lo(..)
+  , K(..)
+  , emptyT
+  )
 where
 import           Data.Monoid 
 import           Data.Monoid    (Monoid, (<>), mempty, mconcat)
@@ -24,7 +28,8 @@ type Vv = String            -- ^ Variable Value
 -- | FMC Terms Type
 data Tm = V Vv Tm          -- ^ Variable
         | P Tm Lo Tm       -- ^ Application or Push [M]a.N
-        | B Vv TT Lo Tm    -- ^ Abstraction or Pop  a<x:t>.N 
+        | B Vv TT Lo Tm    -- ^ Abstraction or Pop  a<x:t>.N
+        | E Tm Tm          -- ^ Evaluate Term
         | St               -- ^ Star 
         deriving (Eq)
 
@@ -37,7 +42,7 @@ data K a = K a             -- ^ Value Kind
          | K a :=> K a     -- ^ Higher Kind
          deriving Eq
 
--- | Vector Types 
+
 type VT a = [a]         -- ^ a vector of types
 
 -- | Location Types
@@ -46,6 +51,8 @@ data T a = T Lo a
 
 -- | FMC Types
 type TT = K (VT (T String))
+
+emptyT = K []
 
 --------------------------------------------
 -- Location = {out, in, rnd, nd, x, γ, λ} --
