@@ -83,13 +83,9 @@ evaluate (V x c) st@(m,b) = evaluate c nt -- places value @ lambda pos
     unbound = case b !? x of
                 Nothing -> True
                 _       -> False                
-evaluate (B  v ty lo tm) m = evaluate tm (bind v lo m)            -- pops and binds the term
-evaluate (P (V x c) l t') st@(m,b) = evaluate t' (push te l st) -- pushes the bound term
-  where
-    te = case b !? x of
-      Nothing -> St
-      Just x  -> head x      
-evaluate (P te l t') st = evaluate t' (push te l st)       -- pushes the term as is
+evaluate (B v ty lo tm) m = evaluate tm (bind v lo m)        -- pops and binds the term
+evaluate (P te l t') st@(m,b) = evaluate t' (push te l st)   -- pushes the term
+evaluate (E t    t') st@(m,b) = evaluate t' (evaluate t st)  -- evaluates the term 
               
 emptyMem :: State
 emptyMem = (M.empty, M.empty)
@@ -98,37 +94,29 @@ emptyMem = (M.empty, M.empty)
 eval :: [Term] -> State
 eval t = foldl1 (flip (.)) (evaluate <$> t) emptyMem
 
+eval1 :: Term -> State
+eval1 t = evaluate t emptyMem
+
 evalIO :: State -> IO ()
 evalIO st@(m,b) = case m !? Out of
                     Just (x:xs)  -> putStrLn (show x) >> evalIO (M.insert Out xs m, b)
                     Just []      -> return ()
                     Nothing      -> return ()
 
-ex1 = evaluate St emptyMem
+ex7 = eval1 $  -- [1.2.*].<x:t>.x.3.4
+      (P (V "1" $ V "2" St) La)     -- [1 . 2 . *]
+      (B "x" emptyT La              -- <x:t> 
+        $ V "x"                     -- x
+        $ V "3"                     -- 3
+        $ V "4"                     -- 4
+        $ V "+"
+        $ V "+"
+        St)
+      
+ex8 = eval1 $ -- 1 . 2 . <x:t>_ . x . +
+      (V "1" 
+       $ V "2"
+       $ B "x" emptyT Ho
+       $ V "x"
+       $ V "+" St)
 
-ex2 = foldl1 (flip (.)) (evaluate <$> [t,t,t]) emptyMem
-  where
-    t = (V "c" St)
-    
-ex4 = foldl1 (flip (.)) (evaluate <$> [t1,t2,t3,t4]) emptyMem
-   where
-     t1 = (P (V "c" St) (Lo "o") St)
-     t2 = (B  "x"  (WT (sL Ho (T $ C "int"))) (Lo "o") St)
-     t3 = (V "c" St)
-     t4 = (B  "z" (WT (sL Ho (T $ C "int"))) Ho St)
-
--- ex3 = foldl1 (flip (.)) (evaluate <$> [t1, t2, t2]) emptyMem
---   where
---     t1 = (P (V "c" St) "o" St)
---     t2 = (B  "x" "int" "o" St) 
-
--- ex5 = eval [t3, t2, t5, t6]
---   where
---     t1 = (P "c" "o" St)
---     t2 = (B  "x" "int" "" St)
---     t3 = (V "c" St)
---     t4 = (B  "z" "int" Ho St)
---     t5 = (V "c" St)
---     t6 = (P "x" "out" St)
-
--- ex6 = evalIO $ eval [V "2" $ V "232132" $ V "+" $ B "out" "Int" Ho $ P "out" "out" $ St ]
