@@ -1,11 +1,14 @@
+{-# LANGUAGE TypeOperators #-}
 module Syntax
   ( T(..)
-  , L(..)
+  , VT(..)
   , TT(..)
   , Tm(..)
-  , Vt(..)
   , Vv(..)
-  , Lo(..) )
+  , Lo(..)
+  , K(..)
+  , emptyT
+  )
 where
 import           Data.Monoid    (Monoid, (<>), mempty, mconcat)
 import           Data.Semigroup (Semigroup)
@@ -22,24 +25,33 @@ type Vv = String            -- ^ Variable Value
 -------------------------------------------
 
 -- | FMC Terms Type
-data Tm = V Vv  Tm          -- ^ Variable
+data Tm = V Vv Tm          -- ^ Variable
         | P Tm Lo Tm       -- ^ Application or Push [M]a.N
-        | B Vv TT Lo Tm    -- ^ Abstraction or Pop  a<x:t>.N 
-        | St                -- ^ Star 
+        | B Vv TT Lo Tm    -- ^ Abstraction or Pop  a<x:t>.N
+        | E Tm Tm          -- ^ Evaluate Term
+        | St               -- ^ Star 
         deriving (Eq)
 
--------------------------------------------
---  Simple Types == a | a b c | e          --
--------------------------------------------
--- | Constant Variable types
-data Vt = C String          -- ^ a type variable
-        | E                 -- ^ the empty - special constant type
+--------------------------------------------------------------------------
+-- Location Parametrised types = out(a), in(a),b,in(c), int, in(a,b,c)) --
+--------------------------------------------------------------------------
+
+-- | Type Kinds
+data K a = K a             -- ^ Value Kind
+         | K a :=> K a     -- ^ Higher Kind
+         deriving Eq
+
+-- | Vector Types 
+type VT a = [a]         -- ^ a vector of types
+
+-- | Location Types
+data T a = T Lo a
         deriving Eq
-  
--- | Simple Types 
-data T  = T  Vt           -- ^ a constant type
-        | TV [T]          -- ^ a list of types
-        deriving Eq
+
+-- | FMC Types
+type TT = K (VT (T String))
+
+emptyT = K []
 
 --------------------------------------------
 -- Location = {out, in, rnd, nd, x, γ, λ} --
@@ -53,22 +65,6 @@ data Lo = Out              -- ^ User Output Location
         | La               -- ^ Default push Location:   λ ∈ A
         | Lo  String       -- ^ any other location: x ∈ A
         deriving (Eq, Ord)
-
------------------------------------------------------------------------
--- Location Parametrised types = out(a), in(a,b,c), (int, in(a,b,c)) --
------------------------------------------------------------------------
--- | Location Parametrised Types
-newtype L  = L {getMap :: Map Lo T}
-  deriving Eq
-
--- | Type constructor for a FMTt type
-infixl 9 :=>
-  
--- | FMCt Types
-data TT  = TT :=> TT  -- ^ a FMCt        Type
-         | WT L       -- ^ a Location    Type 
-         | WF TT      -- ^ a nested FMCt Type
-         deriving Eq
   
 --------------------------------------------------------------------------------
 -- Show instances
@@ -78,34 +74,27 @@ instance Show Lo where
     In   -> "in"
     Rnd  -> "rnd"
     Nd   -> "nd"
-    Ho   -> "γ"
+    Ho   -> ""--"γ"
     La   -> "λ"
     Lo x -> x
   
-instance Show Vt where
-  show x = case x of
-    E    -> "e"
-    C a  -> a
-
 instance Show Tm where
   show x = case x of
     B v t l t' -> show l ++ "<" ++ v ++ ":" ++ show t ++ ">" ++ "." ++ show t'
     P t l t'   -> "[" ++ show t ++ "]" ++ show l ++ "." ++ show t'
-    V v t      -> v ++ "." ++ show t
+    V v t      -> v ++ "." ++ show t -- untyped version
+--    V v tt t   -> v ++ ":" ++ show tt ++  "." ++ show t -- typed version
     St          -> "*"
 
-instance Show T where
+instance (Show a) => Show (T a) where
+  show (T l t) = show l ++ "(" ++ show t ++  ")"
+{-
+instance (Show a) => Show (VT a) where
   show x = case x of
-    (T v)   -> show v
-    (TV t1) -> mconcat $ (++ " ") . show <$>  t1 
-
-instance Show TT where
+    VT x    -> "(" ++ show x ++ ")"
+-}
+instance (Show a) => Show (K a) where
   show x = case x of
-    WT x    -> show x
-    WF x    -> "(" ++ show x ++ ")"
-    x :=> y -> "(" ++ show x ++ " => " ++ show y ++ ")"
-
-instance Show L where
-  show (L x) = mconcat $ (\(x,y) -> show x ++ "(" ++ show y ++ ") ")  <$>  M.toAscList x
-
+    (K x)   -> "(=>" ++ show x ++ ")"
+    x :=> y -> "(" ++ show x ++ show y ++ ")"
 
