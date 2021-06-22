@@ -9,6 +9,7 @@ pkgs.mkShell {
                            #haskellPackages.hindent # reformatting
                            #haskellPackages.ormolu # reformatting
                            gnumake # makefile
+                           rlwrap # to be able to easily re-enter last input when in the repl
                           ];
 }
 
