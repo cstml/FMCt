@@ -9,14 +9,25 @@ import Control.Monad
 import Data.String (IsString(..))
 
 main :: IO ()
-main = forM_ (repeat 3) $ \_ ->
-       readLn >>= \unPterm ->                    
-       (return . parseFMC) unPterm >>= \pTerm ->
-       (putStrLn . ("Term: "++) . show ) pTerm >>
-       (return.eval1) pTerm >>= \state ->
-       (print . ("State: " ++) . show ) state >>
-       (putStrLn . printStack) state >>
-       (putStrLn . printOutput) state 
+main =
+  let
+    break = (take 80 . repeat) '=' 
+  in 
+  do putStrLn $
+       break ++ "\n"
+       ++ "Hello, and welcome to the FMCt REPL \n"
+       ++ "May the λ be with you!\n"
+       ++ break
+       
+     do forM_ (repeat 3) $ \_ ->
+          putStr "γ> " >>
+          readLn >>= \unPterm ->                    
+          (return . parseFMC) unPterm >>= \pTerm ->
+          (putStrLn . ("Term: "++) . show ) pTerm >>
+          (return.eval1) pTerm >>= \state ->
+          (print . ("State: " ++) . show ) state >>
+          (putStrLn . printStack) state >> (putStrLn) break >>
+          (putStrLn . printOutput) state >> (putStrLn) break
 
        
        
