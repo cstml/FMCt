@@ -1,10 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Evaluator
-    ( eval
-    , State
-    , emptyMem
-    , evaluate
-    ) where
+  ( eval
+  , State
+  , emptyMem
+  , evaluate
+  ) where
 
 import Syntax
 import TypeChecker
