@@ -55,7 +55,7 @@ pop n l st@(m,b)
 
 -- | Hacky way to add numbers - TODO: refactor
 adds :: String -> String -> String
-adds x y = case ((readMaybe x) :: Maybe Int, (readMaybe y) :: Maybe Int) of
+adds x y = case (readMaybe x :: Maybe Int, readMaybe y :: Maybe Int) of
              (Just x, Just y) -> show $ x + y
              _                -> x ++ y
 
@@ -100,22 +100,21 @@ eval t = foldl1 (flip (.)) (evaluate <$> t) emptyMem
 
 evalIO :: State -> IO ()
 evalIO st@(m,b) = case m !? Out of
-                    Just (x:xs)  -> putStrLn (show x) >> evalIO (M.insert Out xs m, b)
+                    Just (x:xs)  -> print (show x)
+                      >> evalIO (M.insert Out xs m, b)
                     Just []      -> return ()
                     Nothing      -> return ()
 
-ex1 = evaluate St emptyMem
-
 ex2 = foldl1 (flip (.)) (evaluate <$> [t,t,t]) emptyMem
   where
-    t = (V "c" St)
+    t = V "c" St
     
 ex4 = foldl1 (flip (.)) (evaluate <$> [t1,t2,t3,t4]) emptyMem
    where
-     t1 = (P (V "c" St) (Lo "o") St)
-     t2 = (B  "x"  (WT (sL Ho (T $ C "int"))) (Lo "o") St)
-     t3 = (V "c" St)
-     t4 = (B  "z" (WT (sL Ho (T $ C "int"))) Ho St)
+     t1 = P (V "c" St) (Lo "o") St
+     t2 = B  "x"  (WT (sL Ho (T $ C "int"))) (Lo "o") St
+     t3 = V "c" St
+     t4 = B  "z" (WT (sL Ho (T $ C "int"))) Ho St
 
 -- ex3 = foldl1 (flip (.)) (evaluate <$> [t1, t2, t2]) emptyMem
 --   where
