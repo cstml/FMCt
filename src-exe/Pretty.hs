@@ -1,5 +1,6 @@
 module Pretty
   ( printStack
+  , printOutput
   )where
 import Syntax
 import Evaluator
@@ -13,4 +14,14 @@ printStack (m,b) = "Memory: \n" ++ printer mem ++ "Bindings: \n" ++ printer bin
     printer [] = ""
     printer (x@(l,ts):xs) = show l ++ "[" ++ show ts ++ "]" ++ "\n" ++ printer xs
 
+printOutput (m,b) = "Output: \n" ++ printer out
+  where
+    out = case m M.!? Out of
+      Just x -> reverse x
+      Nothing -> []
+    printer x = case x of
+      [] -> ""
+      (x:xs) -> show x ++ "\n" ++ printer xs
+    
+    
 

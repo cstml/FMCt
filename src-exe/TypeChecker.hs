@@ -1,22 +1,17 @@
-{-# LANGUAGE OverloadedStrings #-}
 module TypeChecker
-  ()where
+  (inputT)where
+
 import Syntax
 import Data.List (sort)
 import Data.Semigroup
-import Data.Monoid
-import qualified Data.Map  as M
-import           Data.Map  (Map, (!?))
-import qualified Data.Map  as M
-import           Data.List (sort)
-import           Data.Monoid
-import           Data.Semigroup
-import           Syntax
-
 
 type TypeError = String
 
-type C = (String, Maybe TT)
+type Context = (String, Maybe T)
 
-typeCheck :: Tm -> C -> Either TT TypeError
-typeCheck = undefined
+inputT :: T -> T
+inputT []     = []
+inputT (x:xs) = case x of
+  K lt -> inputT xs
+  K t1 :=> t2 -> K t1 : inputT xs
+

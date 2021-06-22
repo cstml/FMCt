@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Evaluator
   ( eval
+  , eval1
   , State
   , emptyMem
   , evaluate
@@ -104,20 +105,20 @@ evalIO st@(m,b) = case m !? Out of
                     Just []      -> return ()
                     Nothing      -> return ()
 
-ex7 = eval1 $  -- [1.2.*].<x:t>.x.3.4
-      (P (V "1" $ V "2" St) La)     -- [1 . 2 . *]
-      (B "x" emptyT La              -- <x:t> 
-        $ V "x"                     -- x
-        $ V "3"                     -- 3
-        $ V "4"                     -- 4
-        $ V "+"
-        $ V "+"
-        St)
+ex7 = eval1 $                  -- [1.2.*].<x:t>.x.3.4
+      P (V "1" $ V "2" St) La  -- [1 . 2 . *]
+      (B "x" [] La             -- <x:t> 
+        $ V "x"                -- x
+        $ V "3"                -- 3
+        $ V "4"                -- 4
+        $ V "+"                -- +
+        $ V "+"                -- +
+        St)                    -- *
       
-ex8 = eval1 $ -- 1 . 2 . <x:t>_ . x . +
-      (V "1" 
-       $ V "2"
-       $ B "x" emptyT Ho
-       $ V "x"
-       $ V "+" St)
+ex8 = eval1          -- 1 . 2 . <x:t>_ . x . +
+      (V "1"         -- 1
+       $ V "2"       -- 2
+       $ B "x" [] Ho -- <x>
+       $ V "x"       -- x
+       $ V "+" St)   -- +
 

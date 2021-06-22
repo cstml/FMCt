@@ -9,19 +9,14 @@ import Control.Monad
 import Data.String (IsString(..))
 
 main :: IO ()
-main = 
-  readLn  >>= \x ->
-  putStrLn x
-{-
-  return (parseFMC x) >>= \y ->
-  putStrLn (show y) >>
-  return (eval y) >>= \z ->
-  putStrLn (printStack z)  >>
-  return ()
+main = forM_ (repeat 3) $ \_ ->
+       readLn >>= \unPterm ->                    
+       (return . parseFMC) unPterm >>= \pTerm ->
+       (putStrLn . ("Term: "++) . show ) pTerm >>
+       (return.eval1) pTerm >>= \state ->
+       (print . ("State: " ++) . show ) state >>
+       (putStrLn . printStack) state >>
+       (putStrLn . printOutput) state 
 
-
-  do putStrLn "Hello!" >> sepparate
-          putStrLn peex2
-  where
-    sepparate = putStrLn $ take 80 $ repeat '-'
--}
+       
+       

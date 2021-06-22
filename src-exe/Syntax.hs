@@ -1,4 +1,3 @@
-{-# LANGUAGE TypeOperators #-}
 module Syntax
   ( T(..)
   , VT(..)
@@ -7,15 +6,10 @@ module Syntax
   , Vv(..)
   , Lo(..)
   , K(..)
+  , GLT(..)
   , emptyT
   )
 where
-import           Data.Monoid    (Monoid, (<>), mempty, mconcat)
-import           Data.Semigroup (Semigroup)
-import           Data.Traversable
-import           Data.Functor
-import qualified Data.Map  as M
-import           Data.Map  (Map, (!?))
 
 -- | Variable Value Type 
 type Vv = String            -- ^ Variable Value
@@ -36,20 +30,25 @@ data Tm = V Vv Tm          -- ^ Variable
 -- Location Parametrised types = out(a), in(a),b,in(c), int, in(a,b,c)) --
 --------------------------------------------------------------------------
 
+infixr 9 :=>
+
 -- | Type Kinds
 data K a = K a             -- ^ Value Kind
          | K a :=> K a     -- ^ Higher Kind
          deriving Eq
 
--- | Vector Types 
-type VT a = [a]         -- ^ a vector of types
+-- | Generic Vector Types 
+type VT a = [a]            -- ^ a vector of types
 
--- | Location Types
-data T a = T Lo a
+-- | Generic Location Types
+data GLT a = T Lo a
         deriving Eq
 
+-- | Location Types 
+type T = [K (GLT (VT String))]
+
 -- | FMC Types
-type TT = K (VT (T String))
+type TT =  T
 
 emptyT = K []
 
@@ -74,7 +73,7 @@ instance Show Lo where
     In   -> "in"
     Rnd  -> "rnd"
     Nd   -> "nd"
-    Ho   -> ""--"γ"
+    Ho   -> "γ"--"γ"
     La   -> "λ"
     Lo x -> x
   
@@ -86,15 +85,11 @@ instance Show Tm where
 --    V v tt t   -> v ++ ":" ++ show tt ++  "." ++ show t -- typed version
     St          -> "*"
 
-instance (Show a) => Show (T a) where
+instance (Show a) => Show (GLT a) where
   show (T l t) = show l ++ "(" ++ show t ++  ")"
-{-
-instance (Show a) => Show (VT a) where
-  show x = case x of
-    VT x    -> "(" ++ show x ++ ")"
--}
+
 instance (Show a) => Show (K a) where
   show x = case x of
-    (K x)   -> "(=>" ++ show x ++ ")"
-    x :=> y -> "(" ++ show x ++ show y ++ ")"
+    K x     -> "(" ++ show x ++ ")"
+    x :=> y -> "(" ++ show x ++ "->" ++ show y ++ ")"
 

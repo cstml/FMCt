@@ -2,24 +2,30 @@ module Examples where
 
 import Evaluator
 import Syntax
-import Pretty 
-{-
--- Simple Terms
-ex1 = (Va "a" St)
-ex2 = (Va "a" ex1)
-ex3 = (Ab "x" "i" "a" St)
-ex4 = (Ap ex1 In St)
+import Pretty
+import TypeChecker
 
--- Types
-t2 = "a" :-> (VT "a" "3") :-> (VT "a" "2") :-> (VT "b" "5") :-> (VT "a" "1")
-t1 = "a" :-> "b" :-> "c"
+--  Types
 
--- Evaluation
-eex1 = evaluate St emptyMem
-eex2 = foldl1 (flip (.)) (evaluate <$> [t,t,t]) emptyMem
-  where
-    t = (Va "c" St)
+t0 :: T
+t0 = [ K $ T La []
+     , K ( T La [] ) :=> K (T La []) :=> K (T La [])
+     ]
 
--- Pretty Printer
-peex2 = printStack eex2
--}
+t1 :: T
+t1 = [ K $ T La []
+     , K ( T La ["a"] ) :=> K ( T La ["a"] ) :=> K ( T La ["a"] )
+     ]
+
+
+t2 :: T
+t2 = [ K $ T La []
+     , K ( T La ["a"] ) :=> K ( T La ["a"] ) :=> K ( T La ["a"] )
+     , K ( T La ["a"] ) :=> K ( T La ["a"] ) :=> K ( T La ["a"] )
+     ]
+
+equalityT = t1 == t2
+
+-- Terms
+term1 :: String 
+term1 =  "1.2.3.γ<x:_>.+.x.+"

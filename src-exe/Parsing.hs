@@ -1,17 +1,20 @@
-W-module Parsing
+module Parsing
     (
       parseFMC
     )
 where
-
-import Evaluator
+import Control.Monad (void)
 import Data.String (IsString(..))
-import Syntax
+import Syntax 
 import Text.ParserCombinators.Parsec
 import qualified Text.ParserCombinators.Parsec
 
-parseFMC :: Parser Tm
-parseFMC = undefined
+type SubType = K (GLT (VT String))
+
+parseFMC :: String -> Tm
+parseFMC x = case parse term "FMCParser" x of
+  Right x -> x
+  Left  e -> error $ show e
 
 term :: Parser Tm
 term = choice [variable, application, abstraction, star]
@@ -19,17 +22,24 @@ term = choice [variable, application, abstraction, star]
 abstraction :: Parser Tm
 abstraction = do
   l <- location
-  x <- between (char '<') (char '>') term
-  return $ B 
+  v <- char '<' >> spaces >> many1 alpha <> many alphaNumeric
+  t <- spaces >> char ':' >> termType <* spaces <* char '>'
+  t2 <- spaces >> sepparator >> term 
+  return $ B v t l t2
 
 application :: Parser Tm
-application = error "undefined"
+application = do
+  t <- between (char '[') (char ']') term
+  l <- location
+  t2 <- sepparator >> term
+  return $ P t l t2
+  
               
 variable :: Parser Tm
 variable = do
-  x <- (many1 alpha) <> (many alphaNumeric)
-  sepparator
-  return $ V x St
+  x <- spaces >> ( many1 alphaNumeric <|> many1 operators )
+  t2 <- spaces >> sepparator >> spaces >>  term
+  return $ V x t2
 
 star :: Parser Tm
 star = do
@@ -37,16 +47,51 @@ star = do
     <|> (char '*' >> return St)
 
 location :: Parser Lo
-location =
-  (string "out" >> return Out)
-  <|> (string "in" >> return In)
+location = 
+  choice [ string "out" >> return Out
+         , string "in" >> return In
+         , string "rnd" >> return Rnd
+         , string "nd" >> return Nd
+         , string "λ" >> return La
+         , string "_" >> return Ho
+         , string "γ" >> return Ho 
+         , do s <- many1 alphaNumeric
+              return $ Lo s
+         , string "" >> return La
+         ]
+  
+typeConstant :: Parser String
+typeConstant = many1 alpha <> many alphaNumeric
 
+vecConstants :: Parser [String]
+vecConstants = sepBy1 typeConstant (between spaces spaces (char ','))
+
+locationType :: Parser SubType 
+locationType = do
+  l <- location
+  t <- between (spaces >> char '(') (spaces >> char ')') vecConstants
+  return $ K (T l t)
+
+higherType :: Parser SubType
+higherType =
+  do t1 <- locationType
+     t2 <- choice [ do between spaces spaces (string "=>") -- return the rest
+                       Just <$> higherType  
+                  , return Nothing  -- it is the last one 
+                  ]
+     case t2 of
+       Nothing -> return t1
+       Just t2 -> return $ t1 :=> t2
+    
 termType :: Parser T
+termType = choice [sepBy1 (between (spaces >> char '(') (spaces >> char ')') higherType)
+                          (between spaces spaces (char ','))
+                  , spaces >> char '_' >> return []] -- no Type 
 
 --------------------------------------------------------------------------------
 -- Aux
 sepparator :: Parser ()
-sepparator = eof <|> (between spaces spaces (oneOf ".;") >> return ())
+sepparator = eof <|> void (between spaces spaces (oneOf ".;"))
 
 alpha :: Parser Char
 alpha = oneOf $ ['a' .. 'z'] ++ ['A' .. 'Z']
@@ -59,38 +104,11 @@ alphaNumeric = alpha <|> numeric
 
 operators :: Parser Char
 operators = oneOf "+-/%=!?"
-  
-{-
---------------------------------------------------------------------------------
--- Aux 
-pSpaces :: Parser ()
-pSpaces = do many $ oneOf " .;"
-             return ()
 
-pText :: Parser String
-pText =  many $ oneOf $ ['a'..'z'] ++ ['A'..'Z'] ++ ['0' .. '9'] ++ "+"
-  
---------------------------------------------------------------------------------
--- | Type Parser
-pType :: Parser TT
-pType = do char ':' >> spaces
-           x <- between (char '(' >> spaces) (spaces >> char ')') pType'                      
-           return x
-           
-pType' =  try pVectorType
-          <|> try pLocationType
-          <|> try pConstantType
---          <|> try pMachineType
 
--- :(Int)
-pConstantType :: Parser TT
-pConstantType = do
-  x <-  try $ string "*"
-        <|> string " " <|> string "_"
-        <|> pText
-  case x of
-    "*" -> return $ CT Star         -- Star
-    ""  -> return $ fromString "_"  -- To Be Inferred
-    "_" -> return $ fromString "_"  -- To Be Inferred   
-    _   -> return $ fromString x    -- Simple Type
--}
+-- parse example
+ex1 = parseTest term "x . y . [*]. [*] . <x:((int,bool))>"
+ex2 = parseTest term "x . y . [*]. [*] . <x:_>"
+ex3 = parseTest term "x . y . [*]. [*] . <x:(a(int,bool) => (int))>"
+ex4 = parseTest term "x . y . [*]. [*] . <x:(a(a) => (a) => (b))>"  -- higher order type 
+ex5 = parseTest term "x . y . [*]. [*] . <x:(a(ab,b) => (int)), (b(int))>"
