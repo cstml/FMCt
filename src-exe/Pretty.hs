@@ -11,6 +11,6 @@ printStack (m,b) = "Memory: \n" ++ printer mem ++ "Bindings: \n" ++ printer bin
     mem = M.toList m
     bin = M.toList b
     printer [] = ""
-    printer (x@(l,ts):xs) = show l ++ "[" ++ show ts ++ "]" ++ "\n" ++ (printer xs)
+    printer (x@(l,ts):xs) = show l ++ "[" ++ show ts ++ "]" ++ "\n" ++ printer xs
 
 

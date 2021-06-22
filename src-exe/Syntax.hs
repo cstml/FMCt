@@ -7,7 +7,6 @@ module Syntax
   , Vv(..)
   , Lo(..) )
 where
-import           Data.Monoid 
 import           Data.Monoid    (Monoid, (<>), mempty, mconcat)
 import           Data.Semigroup (Semigroup)
 import           Data.Traversable
@@ -98,7 +97,7 @@ instance Show Tm where
 instance Show T where
   show x = case x of
     (T v)   -> show v
-    (TV t1) -> mconcat $ ((++ " ") . show) <$>  t1 
+    (TV t1) -> mconcat $ (++ " ") . show <$>  t1 
 
 instance Show TT where
   show x = case x of

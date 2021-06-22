@@ -1,4 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
 module Examples where
 
 import Evaluator

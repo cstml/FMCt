@@ -1,18 +1,20 @@
 {-# LANGUAGE OverloadedStrings #-}
 module TypeChecker
-  ( sL
-  )where
-import Syntax
-import Data.List (sort)
-import Data.Semigroup
-import Data.Monoid
-import qualified Data.Map  as M
+    (
+      sL
+    )where
+
 import           Data.Map  (Map, (!?))
+import qualified Data.Map  as M
+import           Data.List (sort)
+import           Data.Monoid
+import           Data.Semigroup
+import           Syntax
 
 instance Semigroup T where
   (T E) <> t  = t
   t <> (T E)  = t 
-  t1@(T t) <> t2@(T t') = TV $ t1 : t2 :[]
+  t1@(T t) <> t2@(T t') = TV [t1, t2]
   t1@(T t) <> t2@(TV t') = TV $ t1 : t'
   t1@(TV t) <> t2@(T t') = TV $ t ++ [t2]
   t1@(TV t) <> t2@(TV t') = TV $ t ++ t'
@@ -35,10 +37,10 @@ t            >\ (T E)   = t
 t            >\ (TV []) = t
 (T E)        >\ _       = T E
 (TV [])      >\ _       = T E
-(T x)        >\ (T y)   = if x == y then T E else (T x)
+(T x)        >\ (T y)   = if x == y then T E else T x
 (T x)        >\ t2      = TV [T x] >\ t2                               
 t@(TV(x:xs)) >\ (TV(x':xs'))
-  | x == x'   = (TV xs) >\ (TV xs')
+  | x == x'   = TV xs >\ TV xs'
   | otherwise = t
 
 -- | Helper function to create simple Location Type 
@@ -77,7 +79,7 @@ t1      >>+ t2
 -- term runs
 (>>-) :: TT -> TT -> TT
 (WT l1)   >>- (WT l2)   = WT $ mDL l1 l2
-(a :=> b) >>- (c :=> d) = (a :=> (b >>- c))
+(a :=> b) >>- (c :=> d) = a :=> (b >>- c)
 (WF a)    >>- (WF b)    = WF $ a >>- b
 a         >>- b
   | saturated a = WT sE
@@ -85,7 +87,7 @@ a         >>- b
   | otherwise   = error $ "Cannot " ++ show a ++ " >>- " ++ show b
 
 helper :: TT -> TT -> TT
-helper (a :=> b) (c :=> d) = (a :=> d >>+ (b >>- c))
+helper (a :=> b) (c :=> d) = a :=> d >>+ (b >>- c)
 
 -- | Fusion is the type equivalent of a non failing . or ; of the term.
 (>>>) :: TT -> TT -> TT
@@ -94,26 +96,26 @@ helper (a :=> b) (c :=> d) = (a :=> d >>+ (b >>- c))
   where
     tI = WT $ mCL a (mDL c b)
     tO = WT $ mCL d (mDL b d)
-t1@(WT t) >>> t2        = ((WT $ sL Ho (T E)) :=> t1) >>> t2
+t1@(WT t) >>> t2        = WT (sL Ho (T E)) :=> t1 >>> t2
 t1        >>> t2@(WT t) = t1 >>> (WT sE :=> t2)
 
 -- | Type composition
 (>>.) :: TT -> TT -> Either TT TError
 t1 >>. t2
   = case (t1, t2) of 
-      ((WT a :=> WT b), (WT c :=> WT d)) -> result 
+      (WT a :=> WT b, WT c :=> WT d) -> result 
         where
           x = mDL c b    
-          result = case pEmpty x of
-            True  -> Left $ t1 >>> t2
-            False -> Right $ "Typecheck Error: Cannot compose type " ++ show t1 ++ " with " ++ show t2
-      (WT x, _) -> ((WT $ sL Ho (T E)) :=> t1) >>. t2
+          result = if pEmpty x 
+            then Left $ t1 >>> t2
+            else Right $ "Typecheck Error: Cannot compose type " ++ show t1 ++ " with " ++ show t2
+      (WT x, _) -> (WT (sL Ho (T E)) :=> t1) >>. t2
 
 -- | Asert if the type is an empty
 --
 -- This means that there are no locations that still have unsaturated types 
 pEmpty :: L -> Bool
-pEmpty x = let y = getMap x in M.foldr (\x y -> y && (x == (T E))) True y
+pEmpty x = let y = getMap x in M.foldr (\x y -> y && (x == T E)) True y
 
 -- | Type Checker
 tCheck :: TT -> TT -> TT
@@ -129,8 +131,8 @@ ex2 = sL La ex1  -- location parametrised types
 ex3 = sL Ho ex1  -- location parametrised types
 ex4 = mCL ex2 ex3 -- merging location parametrised types
 ex5 = mDL ex4 ex4 -- merging location parametrised types
-ex6 = ((WT ex4) :=> (WT ex4)) == ((WT ex4) :=> (WT (sL Ho $ T E))) -- comparisson of types works
-ex7 = let a = ((WT ex4) :=> (WT ex4)) in a == a 
+ex6 = (WT ex4 :=> WT ex4) == (WT ex4 :=> WT (sL Ho $ T E)) -- comparisson of types works
+ex7 = let a = (WT ex4 :=> WT ex4) in a == a 
 
 --------------------------------------------------------------------------------
 -- Examples fusion
@@ -168,14 +170,12 @@ exc3 = exc1 >>. exc2
 ext1 = t1 :=> t2
   where
     t1 = WT $ sL Ho (T E)
-    t2 = t1 :=> (WT $ sL Ho (T $ C "Int"))
+    t2 = t1 :=> WT (sL Ho (T $ C "Int"))
 
 ext2 = t1 :=> t2
   where
     t1 = WT $ sL Ho (T E)
-    t2 = t1 :=> (WT $ sL La (T $ C "Int"))
-
-
+    t2 = t1 :=> WT (sL La (T $ C "Int"))
 
 {-
 --------------------

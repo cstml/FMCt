@@ -1,10 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Evaluator
-  ( eval
-  , State
-  , emptyMem
-  , evaluate
-  ) where
+    ( eval
+    , State
+    , emptyMem
+    , evaluate
+    ) where
 
 import Syntax
 import TypeChecker
@@ -86,9 +86,7 @@ evaluate (V x c) st@(m,b) = evaluate c nt -- places value @ lambda pos
 evaluate (B  v ty lo tm) m = evaluate tm (bind v lo m)            -- pops and binds the term
 evaluate (P (V x c) l t') st@(m,b) = evaluate t' (push te l st) -- pushes the bound term
   where
-    te = case b !? x of
-      Nothing -> St
-      Just x  -> head x      
+    te = maybe St head  (b !? x)
 evaluate (P te l t') st = evaluate t' (push te l st)       -- pushes the term as is
               
 emptyMem :: State
