@@ -4,6 +4,7 @@ let
 in
 pkgs.mkShell {
   buildInputs = with pkgs;[ghcid # ghcide
+                           ghc
                            haskellPackages.hlint # linting
                            haskellPackages.fourmolu # reformatting
                            #haskellPackages.hindent # reformatting
