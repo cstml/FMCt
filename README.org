@@ -1,3 +1,0 @@
-* FMCt
-
-Typed Functional Machine Calculus.
