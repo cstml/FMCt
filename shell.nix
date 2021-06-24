@@ -1,7 +1,6 @@
 { release  ? import ./release.nix
 , sources  ? import ./nix/sources.nix
 , pkgs     ? import sources.nixpkgs{}
-, dotfiles ? import sources.dotfiles{}
 }:
 let 
   
