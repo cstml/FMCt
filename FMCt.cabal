@@ -2,9 +2,6 @@ cabal-version:       >=1.10
 
 name:                FMCt
 
--- PVP summary:      +-+------- breaking API changes
---                   | | +----- non-breaking API additions
---                   | | | +--- code changes with no API change
 version:             0.1.0.0
 
 license:             BSD3
@@ -32,13 +29,14 @@ executable FMCt
   -- other-modules:
 
   -- LANGUAGE extensions used by modules in this package.
-  -- other-extensions: 
+  other-extensions:    OverloadedStrings
 
   -- Other library packages from which modules are imported.
   build-depends:       base,
                        containers,
                        mtl,
                        parsec,
+                       scotty,
                        text
 
   -- Directories containing source files.
