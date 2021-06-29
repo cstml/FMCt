@@ -1,27 +1,29 @@
-{-# LANGUAGE OverloadedStrings #-}
 module Evaluator
   ( eval
   , eval1
   , State
+  , Binds
+  , Memory
   , emptyMem
-  , evaluate
   ) where
 
-import Syntax
-import TypeChecker
 import Data.Map (Map, (!?))
-import qualified Data.Map as M
-import Data.Char
 import Data.String (IsString(..))
-import Text.Read
+import Syntax (Tm(..), Lo(..), Vv)
+import Text.Read (readMaybe)
+import qualified Data.Map as M
 
-type Term   = Tm
-type Memory = Map Lo [Term]
-type Binds  = Map Vv [Term]
+-- | Memory is a Map between a location and a list of Terms.
+type Memory = Map Lo [Tm]
+
+-- | Binds are a Map of Tms refering to a list of Terms.
+type Binds  = Map Vv [Tm]
+
+-- | FMCt State is formed from a tuple of Memory and Binds
 type State  = (Memory, Binds)
   
 -- | Pushes a term to a location the memory
-push :: Term -> Lo -> State -> State
+push :: Tm -> Lo -> State -> State
 push t In  _ = error $ "Cannot push term: " ++ show t ++ " to in"   -- not allowed
 push t Rnd _ = error $ "Cannot push term: " ++ show t ++ " to rnd"  -- not allowed
 push t Nd  _ = error $ "Cannot push term: " ++ show t ++ " to nd"   -- not allowed
@@ -68,7 +70,7 @@ add st@(m,b) = t
       Just (x:y:xs) -> case (x, y) of
                          (V x _ , V y _) -> push (V (x `adds` y) St) Ho (M.insert Ho xs m, b)
         
-evaluate :: Term -> State -> State
+evaluate :: Tm -> State -> State
 evaluate (V "+" c) m = evaluate c $ add (pop 2 Ho m)
   where
     intermediary = add $ pop 2 Ho m
@@ -87,15 +89,19 @@ evaluate (V x c) st@(m,b) = evaluate c nt -- places value @ lambda pos
 evaluate (B v ty lo tm) m = evaluate tm (bind v lo m)        -- pops and binds the term
 evaluate (P te l t') st@(m,b) = evaluate t' (push te l st)   -- pushes the term
 evaluate (E t    t') st@(m,b) = evaluate t' (evaluate t st)  -- evaluates the term 
-              
+
+-- | The Empty FMCt Evaluator state.
 emptyMem :: State
 emptyMem = (M.empty, M.empty)
 
--- | Takes a list of terms and evaluates them
-eval :: [Term] -> State
+-- | Takes a list of terms and evaluates them one after another starting from
+-- the head.
+eval :: [Tm] -> State
 eval t = foldl1 (flip (.)) (evaluate <$> t) emptyMem
 
-eval1 :: Term -> State
+-- | Takes 1 term and evaluates it by running it on an FMCt machine starting
+-- from an empty memory.
+eval1 :: Tm -> State
 eval1 t = evaluate t emptyMem
 
 evalIO :: State -> IO ()
@@ -113,7 +119,7 @@ ex7 = eval1 $                  -- [1.2.*].<x:t>.x.3.4
         $ V "4"                -- 4
         $ V "+"                -- +
         $ V "+"                -- +
-        St)                    -- *
+        St)                    -- Star
       
 ex8 = eval1          -- 1 . 2 . <x:t>_ . x . +
       (V "1"         -- 1
