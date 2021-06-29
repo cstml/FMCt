@@ -16,9 +16,7 @@ printStack (m,b) = "Memory: \n" ++ printer mem ++ "Bindings: \n" ++ printer bin
 
 printOutput (m,b) = "Output: \n" ++ printer out
   where
-    out = case m M.!? Out of
-      Just x -> reverse x
-      Nothing -> []
+    out = maybe [] reverse (m M.!? Out)
     printer x = case x of
       [] -> ""
       (x:xs) -> show x ++ "\n" ++ printer xs

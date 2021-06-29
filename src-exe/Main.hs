@@ -11,7 +11,7 @@ import Data.String (IsString(..))
 main :: IO ()
 main =
   let
-    break = (take 80 . repeat) '=' 
+    break = replicate 80 '=' 
   in 
   do putStrLn $
        break ++ "\n"
@@ -19,15 +19,15 @@ main =
        ++ "May the λ be with you!\n"
        ++ break
        
-     do forM_ (repeat 3) $ \_ ->
-          putStr "γ> " >>
+     do forM_ (repeat 3) $
+          \_ -> putStr "γ> " >>
           readLn >>= \unPterm ->                    
           (return . parseFMC) unPterm >>= \pTerm ->
           (putStrLn . ("Term: "++) . show ) pTerm >>
           (return.eval1) pTerm >>= \state ->
           (print . ("State: " ++) . show ) state >>
-          (putStrLn . printStack) state >> (putStrLn) break >>
-          (putStrLn . printOutput) state >> (putStrLn) break
+          (putStrLn . printStack) state >> putStrLn break >>
+          (putStrLn . printOutput) state >> putStrLn break
 
        
        
