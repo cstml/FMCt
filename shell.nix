@@ -1,17 +1,8 @@
-<<<<<<< HEAD
-let
-  release = import ./release.nix;
-  packages = import ./package.nix;
-  pkgs = import <nixpkgs> { };
-=======
 { release  ? import ./release.nix
 , sources  ? import ./nix/sources.nix
 , pkgs     ? import sources.nixpkgs{}
+, packages ? import ./package.nix
 }:
-let 
-  
->>>>>>> b5d5c50
-in
 pkgs.mkShell {
   buildInputs = with pkgs;[ghcid # ghcide
                            zlib
