@@ -1,47 +1,24 @@
-cabal-version:       >=1.10
-
-name:                FMCt
-
-version:             0.1.0.0
-
-license:             BSD3
-
-license-file:        LICENSE
-
-author:              Vlad Posmangiu Luchian
-
-maintainer:          cstmlcodes@gmail.com
-
--- A copyright notice.
--- copyright:
-
-category:            Language
-
-build-type:          Simple
-
-extra-source-files:  CHANGELOG.md, README.org
+cabal-version:         >=1.10                      
+name:                  FMCt                      
+version:               0.1.0.0                      
+license:               BSD3                      
+license-file:          LICENSE                      
+author:                Vlad Posmangiu Luchian                     
+maintainer:            cstmlcodes@gmail.com
+copyright:             "Copyright belongs to Vlad Posmangiu Luchian"
+category:              Language
+build-type:            Simple
+extra-source-files:    CHANGELOG.md
+                     , README.org
 
 executable FMCt
-  -- .hs or .lhs file containing the Main module.
   main-is:             Main.hs
-
-  -- Modules included in this executable, other than Main.
-  -- other-modules:
-
-  -- LANGUAGE extensions used by modules in this package.
   other-extensions:    OverloadedStrings
-
-  -- Other library packages from which modules are imported.
   build-depends:       base,
                        containers,
                        mtl,
                        parsec,
-                       scotty,
                        text
-
-  -- Directories containing source files.
   hs-source-dirs:      src-exe
-
-  -- Base language which the package is written in.
   default-language:    Haskell2010
 
