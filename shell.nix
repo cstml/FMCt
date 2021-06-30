@@ -16,6 +16,5 @@ pkgs.mkShell {
                            gnumake # makefile
                            rlwrap # to be able to easily re-enter last input when in the repl
                           ];
-  packages = pkgs.haskellPackages.callPackage packages{}; 
 }
 

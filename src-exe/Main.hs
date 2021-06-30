@@ -28,3 +28,12 @@ main =
           (print . ("State: " ++) . show ) state >>
           (putStrLn . printStack) state >> putStrLn break >>
           (putStrLn . printOutput) state >> putStrLn break
+
+shortcut :: String -> IO ()
+shortcut unPterm = (return . parseFMC) unPterm >>=
+                   \pTerm -> (putStrLn . ("Term: "++) . show ) pTerm >>
+                   (return.eval1) pTerm >>=
+                   \state -> (print . ("State: " ++) . show ) state >>
+                   (putStrLn . printStack) state  >>
+                   (putStrLn . printOutput) state
+

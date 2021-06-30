@@ -2,19 +2,20 @@
 
 # Run the main executable
 run: build
-	./result/bin/FMCt
+	nix-shell -p rlwrap --command "rlwrap ./result/bin/FMCt"
 
 # Build the main executable with nix
-build: ./result/bin/FMCt
-	nix-build release.nix
+build: 
+	nix-build 
 
 # Clean-up the folder 
 clean:
 	@rm .*/**~ 2> /dev/null #remove all the backups made by emacs
+	@rm -r ./dit-newstyle
 
 # Starts a repl
 repl-start:
-	cabal new-repl FMCt
+	cabal new-repl Test
 
 # Start a lint watcher 
 lint-watch:
