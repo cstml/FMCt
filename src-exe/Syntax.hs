@@ -22,11 +22,11 @@ type Vv = String            -- ^ Variable Value is represeted by a String.
 
 -- | FMC Terms Type
 data Tm = V Vv Tm          -- ^ Variable
-        | P Tm Lo Tm       -- ^ Application or Push [M]a.N
-        | B Vv T  Lo Tm    -- ^ Abstraction or Pop  a<x:t>.N
-        | E Tm Tm          -- ^ Evaluate Term
+        | P Tm Lo Tm       -- ^ Application or Push: [M]a.N
+        | B Vv T  Lo Tm    -- ^ Abstraction or Pop:  a\<x:t\>.N
+        | E Tm Tm          -- ^ Evaluate Term -- might drop
         | St               -- ^ Star 
-        deriving (Eq)
+        deriving (Eq, Ord)
 
 --------------------------------------------------------------------------
 -- Location Parametrised types = out(a), in(a),b,in(c), int, in(a,b,c)) --
@@ -41,7 +41,7 @@ infixr 9 :=>
 -- type =>a.
 data K a = K a             -- ^ Value Kind - it cannot exist by itself inside the FMCt.
          | K a :=> K a     -- ^ Higher Kind - representing the evaluation of an FMCt term. 
-         deriving Eq
+         deriving (Eq, Ord)
 
 -- | Generic Vector Types 
 type VT a = [a]            -- ^ a vector can be represented by a list of instances of type a.
@@ -54,7 +54,7 @@ type FMCVt = VT TConstant -- ^ A vector of Type Constants.
 
 -- | Generic Location Types
 data GLT a = T Lo a -- ^ Type is formed from a type constant and a location 
-        deriving Eq
+        deriving (Eq, Ord)
 
 -- | FMCt Location Type
 type FMCLT = GLT FMCVt
@@ -63,7 +63,8 @@ type FMCLT = GLT FMCVt
 type T = VT (K FMCLT)
 
 -- | FMC empty Type is represented by e=>e or empty to empty
-emptyT = K [] :=> K []
+emptyT :: T
+emptyT = []
 
 --------------------------------------------
 -- Location = {out, in, rnd, nd, x, γ, λ} --

@@ -4,8 +4,8 @@ import Parsing
 import Pretty
 import Evaluator
 import Examples
-import TypeChecker
-import Control.Monad
+import TypeChecker(typeCheck)
+import Control.Monad(void, forM_)
 import Data.String (IsString(..))
 
 main :: IO ()
@@ -28,6 +28,3 @@ main =
           (print . ("State: " ++) . show ) state >>
           (putStrLn . printStack) state >> putStrLn break >>
           (putStrLn . printOutput) state >> putStrLn break
-
-       
-       

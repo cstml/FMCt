@@ -33,8 +33,7 @@ application = do
   l <- location
   t2 <- sepparator >> term
   return $ P t l t2
-  
-              
+                
 variable :: Parser Tm
 variable = do
   x <- spaces >> ( many1 alphaNumeric <|> many1 operators )
@@ -72,12 +71,17 @@ locationType = do
   t <- between (spaces >> char '(') (spaces >> char ')') vecConstants
   return $ K (T l t)
 
+emptyType :: Parser SubType
+emptyType = do
+    spaces 
+    return $ K (T Ho [])
+
 higherType :: Parser SubType
 higherType =
-  do t1 <- locationType
+  do t1 <- locationType <|> emptyType
      t2 <- choice [ do between spaces spaces (string "=>") -- return the rest
                        Just <$> higherType  
-                  , return Nothing  -- it is the last one 
+                  , return Nothing                         -- it is the last one 
                   ]
      case t2 of
        Nothing -> return t1
@@ -104,7 +108,6 @@ alphaNumeric = alpha <|> numeric
 
 operators :: Parser Char
 operators = oneOf "+-/%=!?"
-
 
 -- parse example
 ex1 = parseTest term "x . y . [*]. [*] . <x:((int,bool))>"

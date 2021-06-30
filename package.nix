@@ -7,6 +7,7 @@
 , text
 , scotty
 , base64-bytestring
+, QuickCheck
 }:
 mkDerivation {
   pname = "FMCt";
@@ -22,6 +23,7 @@ mkDerivation {
     scotty
     text
     base64-bytestring
+    QuickCheck
   ];
   license = stdenv.lib.licenses.bsd3;
 }
