@@ -14,7 +14,7 @@ clean:
 
 # Starts a repl
 repl-start:
-	cabal new-repl
+	cabal new-repl FMCt
 
 # Start a lint watcher 
 lint-watch:
@@ -22,11 +22,11 @@ lint-watch:
 
 # Start a compilation watcher 
 compile-watch:
-	nix-shell -p ghcid --command "ghcid"
+	nix-shell -p ghcid --command 'ghcid --command "cabal repl Test"'
 
 # Make the documentation and automatically refresh it 
 haddock-watch:
-	ls **/*.hs | entr haddock ./src-exe/*.hs -o ./doc -h
+	ls **/*.hs | entr cabal new-haddock --haddock-all
 
 # Reformat all the code according to fourmolu.yaml
 reformat: 
