@@ -1,7 +1,6 @@
 module TypeChecker
   ( typeCheck
   , TypeError(..)
-  , buildContext
   )
 where
 
@@ -14,16 +13,18 @@ import Control.Monad.ST.Strict
 import Parsing
 import Text.Read (readMaybe)
 
+typeCheck = undefined
+{-
 type VStream = [String]
 
 varStream :: VStream
 varStream = [ y : z : show x | x <- [1 ..], y <- ['a'..'z'], z <- ['a'..'z'] ]
-
+-}
 -- | TypeChecking Error.
 data TypeError = SimpleEr String  -- ^ A Simple Error
                | TypeClash String -- ^ A Type Clash
                deriving Show
-
+{-
 type TypeVariable = String -- ^ Type Variable.
 
 type Type = Either TypeVariable T -- ^ The type is either a typevariable or a type.
@@ -117,3 +118,4 @@ createType St c = c
 createType (V x t) c = runST $ do
   binding <- getFromContext (V x St) c
   return c
+-}

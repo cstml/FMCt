@@ -1,4 +1,7 @@
-module Test
+module TestGenerators
+  ( genTerm
+  , genType
+  )
 where
 import Syntax
 import Parsing
@@ -60,9 +63,7 @@ genPreDefLocation = elements [Out, In, Rnd, Nd, Ho, La]
 
 -- | Random Location Generator
 genRandLocation :: Gen Lo
-genRandLocation = do
-  l <- genBinder
-  return $ Lo l
+genRandLocation = do Lo <$> genBinder
 
 --------------------------------------------------------------------------------
 -- Type Generators

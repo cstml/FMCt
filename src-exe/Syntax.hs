@@ -1,3 +1,9 @@
+{-|
+Module      : Syntax
+Description : Short description
+
+Syntax module of the FMCt.
+-}
 module Syntax
   ( T(..)
   , Tm(..)
@@ -30,7 +36,7 @@ data Tm = V Vv Tm          -- ^ Variable
 infixr 9 :=>
 
 -- | Type Constants
-type TConstant = String -- ^ type constants are strings, with void being represented by "" or empty String.
+type TConstant = String -- ^ Type constants are strings, with void being represented by `""` or empty String.
 
 -- | Location Types are a Vector of Kinded FMCt Location parametrised type constants. 
 type T = Type TConstant
@@ -38,7 +44,7 @@ type T = Type TConstant
 data Type a = TConst a  -- ^ Type Constant.
             | TLocat Lo (Type a) -- ^ Location Parametrised Type.
             | Type a :=> Type a -- ^ A Higher Type.
-            | TVector [(Type a)] -- 
+            | TVector [Type a] -- 
             deriving (Eq, Ord)
 
 --------------------------------------------
