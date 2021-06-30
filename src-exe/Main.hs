@@ -4,7 +4,7 @@ import Parsing
 import Pretty
 import Evaluator
 import Examples
-import TypeChecker(typeCheck)
+--import TypeChecker(typeCheck)
 import Control.Monad(void, forM_)
 import Data.String (IsString(..))
 

@@ -9,7 +9,7 @@ module Evaluator
 
 import Data.Map (Map, (!?))
 import Data.String (IsString(..))
-import Syntax (Tm(..), Lo(..), Vv)
+import Syntax (Tm(..), Lo(..), Vv, T(..), Type(..))
 import Text.Read (readMaybe)
 import qualified Data.Map as M
 
@@ -113,7 +113,7 @@ evalIO st@(m,b) = case m !? Out of
 
 ex7 = eval1 $                  -- [1.2.*].<x:t>.x.3.4
       P (V "1" $ V "2" St) La  -- [1 . 2 . *]
-      (B "x" [] La             -- <x:t> 
+      (B "x" (TConst "a") La             -- <x:t> 
         $ V "x"                -- x
         $ V "3"                -- 3
         $ V "4"                -- 4
@@ -124,7 +124,8 @@ ex7 = eval1 $                  -- [1.2.*].<x:t>.x.3.4
 ex8 = eval1          -- 1 . 2 . <x:t>_ . x . +
       (V "1"         -- 1
        $ V "2"       -- 2
-       $ B "x" [] Ho -- <x>
+       $ B "x" (TConst "b") Ho -- <x>
        $ V "x"       -- x
        $ V "+" St)   -- +
+
 

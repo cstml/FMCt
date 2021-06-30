@@ -1,5 +1,6 @@
 module Examples where
 
+import Parsing
 import Evaluator
 import Syntax
 import Pretty
@@ -8,24 +9,14 @@ import TypeChecker
 --  Types
 
 t0 :: T
-t0 = [ K $ T La []
-     , K ( T La [] ) :=> K (T La []) :=> K (T La [])
-     ]
-
+t0 = TLocat La (TLocat La (TConst "")) :=> (TLocat La (TConst ""))
+     
 t1 :: T
-t1 = [ K $ T La []
-     , K ( T La ["a"] ) :=> K ( T La ["a"] ) :=> K ( T La ["a"] )
-     ]
+t1 = TVector [ t0, t0 ]
 
-
-t2 :: T
-t2 = [ K $ T La []
-     , K ( T La ["a"] ) :=> K ( T La ["a"] ) :=> K ( T La ["a"] )
-     , K ( T La ["a"] ) :=> K ( T La ["a"] ) :=> K ( T La ["a"] )
-     ]
-
-equalityT = t1 == t2
+equalityT = t0 == t1
 
 -- Terms
 term1 :: String 
-term1 =  "1.2.3.γ<x:_>.+.x.+"
+term1 =  "1.2.3.γ<x:(=>^(Int))>.+.x.+"
+
