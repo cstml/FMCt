@@ -9,7 +9,6 @@ import Syntax
 import Text.ParserCombinators.Parsec
 import qualified Text.ParserCombinators.Parsec
 
-type SubType = K (GLT (VT String))
 
 parseFMC :: String -> Tm
 parseFMC x = case parse term "FMCParser" x of
@@ -52,6 +51,7 @@ location =
          , string "rnd" >> return Rnd
          , string "nd" >> return Nd
          , string "λ" >> return La
+         , string "^" >> return La
          , string "_" >> return Ho
          , string "γ" >> return Ho 
          , do s <- many1 alphaNumeric
@@ -59,38 +59,38 @@ location =
          , string "" >> return La
          ]
   
-typeConstant :: Parser String
-typeConstant = many1 alpha <> many alphaNumeric
+typeConstant :: Parser T
+typeConstant = do
+  x <- many alpha <> many alphaNumeric
+  return $ TConst x
+  
+vectorType :: Parser T
+vectorType = do
+  lst <- between (char '(') (char ')') (termType `sepBy1` (spaces >> (char ',') >> spaces))
+  return $ TVector lst
 
-vecConstants :: Parser [String]
-vecConstants = sepBy1 typeConstant (between spaces spaces (char ','))
-
-locationType :: Parser SubType 
+locationType :: Parser T
 locationType = do
   l <- location
-  t <- between (spaces >> char '(') (spaces >> char ')') vecConstants
-  return $ K (T l t)
+  t <- between (spaces >> char '(') (spaces >> char ')') termType
+  return $ TLocat l t
 
-emptyType :: Parser SubType
+emptyType :: Parser T
 emptyType = do
-    spaces 
-    return $ K (T Ho [])
+    char 'e' 
+    return $ TConst ""
 
-higherType :: Parser SubType
-higherType =
-  do t1 <- locationType <|> emptyType
-     t2 <- choice [ do between spaces spaces (string "=>") -- return the rest
-                       Just <$> higherType  
-                  , return Nothing                         -- it is the last one 
-                  ]
-     case t2 of
-       Nothing -> return t1
-       Just t2 -> return $ t1 :=> t2
+higherType :: Parser T
+higherType =  do
+  lst <- between (char '(') (char ')') (termType `sepBy1` (spaces >> (string "=>") >> spaces))
+  return $ foldr1 (:=>) lst
     
 termType :: Parser T
-termType = choice [sepBy1 (between (spaces >> char '(') (spaces >> char ')') higherType)
-                          (between spaces spaces (char ','))
-                  , spaces >> char '_' >> return []] -- no Type 
+termType = try higherType <|> try locationType <|> vectorType <|> typeConstant
+                  
+  --choice [sepBy1 (between (spaces >> char '(') (spaces >> char ')') higherType)
+--                          (between spaces spaces (char ','))
+--                  , spaces >> char '_' >> return []] -- no Type 
 
 --------------------------------------------------------------------------------
 -- Aux

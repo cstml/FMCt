@@ -1,15 +1,10 @@
 module Syntax
-  ( VT(..)
-  , T(..)
+  ( T(..)
   , Tm(..)
   , Vv(..)
   , Lo(..)
-  , K(..)
-  , GLT(..)
-  , FMCLT
-  , FMCVt
-  , emptyT
   , TConstant
+  , Type(..)
   )
 where
 
@@ -34,37 +29,17 @@ data Tm = V Vv Tm          -- ^ Variable
 
 infixr 9 :=>
 
--- | Generic datatype for Type Kinds
---
--- As a general note, inside the FMTt there is no Value Kind as each term must
--- be of the type a => b. The closest we have to a constant an element of the
--- type =>a.
-data K a = K a             -- ^ Value Kind - it cannot exist by itself inside the FMCt.
-         | K a :=> K a     -- ^ Higher Kind - representing the evaluation of an FMCt term. 
-         deriving (Eq, Ord)
-
--- | Generic Vector Types 
-type VT a = [a]            -- ^ a vector can be represented by a list of instances of type a.
-
 -- | Type Constants
-type TConstant = String -- ^ type constants are strings.
-
--- | FMCt Vector Types.
-type FMCVt = VT TConstant -- ^ A vector of Type Constants. 
-
--- | Generic Location Types
-data GLT a = T Lo a -- ^ Type is formed from a type constant and a location 
-        deriving (Eq, Ord)
-
--- | FMCt Location Type
-type FMCLT = GLT FMCVt
+type TConstant = String -- ^ type constants are strings, with void being represented by "" or empty String.
 
 -- | Location Types are a Vector of Kinded FMCt Location parametrised type constants. 
-type T = VT (K FMCLT)
+type T = Type TConstant
 
--- | FMC empty Type is represented by e=>e or empty to empty
-emptyT :: T
-emptyT = []
+data Type a = TConst a  -- ^ Type Constant.
+            | TLocat Lo (Type a) -- ^ Location Parametrised Type.
+            | Type a :=> Type a -- ^ A Higher Type.
+            | TVector [(Type a)] -- 
+            deriving (Eq, Ord)
 
 --------------------------------------------
 -- Location = {out, in, rnd, nd, x, γ, λ} --
@@ -90,6 +65,13 @@ instance Show Lo where
     Ho   -> "γ"
     La   -> "λ"
     Lo x -> x
+
+instance (Show a) => Show (Type a) where
+  show x = case x of
+    TConst x -> show x
+    TLocat l x -> show l ++ "(" ++ show x ++ ")"
+    t1 :=> t2 -> show t1 ++ " => " ++ show t2
+    TVector x -> "(" ++ (mconcat $ (++ ", ") . show <$> x) ++ ")"
   
 instance Show Tm where
   show x = case x of
@@ -98,11 +80,3 @@ instance Show Tm where
     V v t      -> v ++ "." ++ show t -- untyped version
 --    V v tt t   -> v ++ ":" ++ show tt ++  "." ++ show t -- typed version
     St          -> "*"
-
-instance (Show a) => Show (GLT a) where
-  show (T l t) = show l ++ "(" ++ show t ++  ")"
-
-instance (Show a) => Show (K a) where
-  show x = case x of
-    K x     -> "(" ++ show x ++ ")"
-    x :=> y -> "(" ++ show x ++ "->" ++ show y ++ ")"
