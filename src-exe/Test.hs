@@ -10,38 +10,88 @@ import Control.Monad(void, forM_)
 import Data.String (IsString(..))
 import qualified Data.Map as M
 import Control.Monad.ST
-import Test.QuickCheck (Gen, arbitrary, sample, elements, oneof)
+import Test.QuickCheck (Gen, arbitrary, sample, elements, oneof, listOf, sized, resize, vectorOf)
 
+--------------------------------------------------------------------------------
+-- Term Generators
 -- | Term Generator
-gen_Term :: Gen Tm
-gen_Term = oneof [gen_Variables, gen_Star, gen_App]
+genTerm :: Gen Tm
+genTerm = oneof [genVariables, genStar, genApp]
 
 -- | Variable Generator
-gen_Variables :: Gen Tm
-gen_Variables = do
-  let sample = ['a'..'z'] ++ ['A'..'Z'] ++ ['0'..'9']
-  x <- elements sample 
-  t <- gen_Term
-  return $ V [x] t
-
--- | Star Generator
-gen_Star :: Gen Tm
-gen_Star = return St
+genVariables :: Gen Tm
+genVariables = do
+  b <- genBinder 
+  t <- genTerm
+  return $ V b t
 
 -- | Application Generator
-gen_App :: Gen Tm
-gen_App = do
-  t1 <- gen_Term
-  t2 <- gen_Term
-  l  <- gen_Location
+genApp :: Gen Tm
+genApp = do
+  t1 <- genTerm
+  t2 <- genTerm
+  l  <- genLocation
   return $ P t1 l t2
-  
+
+gen_Abs :: Gen Tm
+gen_Abs = do
+  b <- genBinder
+  t <- genType
+  l <- genLocation
+  t'<- genTerm
+  return $  B b t l t'
+
+-- | Star Generator
+genStar :: Gen Tm
+genStar = return St
+
+--------------------------------------------------------------------------------
+-- Aux
+-- | Binder Generator
+genBinder :: Gen String
+genBinder = vectorOf 3 (elements $ ['a'..'z'] ++ ['A'..'Z'] ++ ['0'..'9'])
+
 -- | Location Generator
-gen_Location :: Gen Lo
-gen_Location = elements [In, Out, La, Ho]
-{-
+genLocation = oneof [genPreDefLocation, genRandLocation]
+
+-- | Predefined Location Generator
+genPreDefLocation :: Gen Lo
+genPreDefLocation = elements [Out, In, Rnd, Nd, Ho, La]
+
+-- | Random Location Generator
+genRandLocation :: Gen Lo
+genRandLocation = do
+  l <- genBinder
+  return $ Lo l
+
+--------------------------------------------------------------------------------
+-- Type Generators
 -- | Type Generator
-gen_Type :: Gen T
-gen_Type = do
-  
--}
+genType :: Gen T
+genType = oneof [genTypeConstant, genLocationType, genHigherType, genVectorType]
+
+-- | Constant Type Generator
+genTypeConstant :: Gen T
+genTypeConstant = do
+  x <- genBinder
+  return $ TConst x
+
+-- | Location Type Generator
+genLocationType :: Gen T
+genLocationType = do
+  x <- genType
+  l <- genLocation
+  return $ TLocat l x
+
+-- | Higher Type Generator
+genHigherType :: Gen T
+genHigherType = do
+  x <- genType
+  y <- genType
+  return $ x :=> y
+
+-- | Vector Type Generator
+genVectorType :: Gen T
+genVectorType = do
+  x <- listOf (resize 2 genType)
+  return $ TVector x
