@@ -43,7 +43,7 @@ type T = Type TConstant
 
 data Type a = TConst a  -- ^ Type Constant.
             | TLocat Lo (Type a) -- ^ Location Parametrised Type.
-            | Type a :=> Type a -- ^ A Higher Type.
+            | Type a :=> Type a -- ^ A FMC Type.
             | TVector [Type a] -- ^ A Vector Type
             deriving (Eq, Ord)
 

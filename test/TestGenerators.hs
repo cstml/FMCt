@@ -19,7 +19,7 @@ import Test.QuickCheck (Gen, arbitrary, sample, elements, oneof, listOf, sized, 
 -- Term Generators
 -- | Term Generator
 genTerm :: Gen Tm
-genTerm = oneof [genVariables, genStar, genApp]
+genTerm = oneof [genVariables, genStar, genApp, gen_Abs]
 
 -- | Variable Generator
 genVariables :: Gen Tm
