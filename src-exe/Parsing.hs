@@ -58,40 +58,66 @@ location =
               return $ Lo s
          , string "" >> return La
          ]
-  
-typeConstant :: Parser T
+
+-- | Type Constants are simple strings:
+--
+-- Examples :
+-- >> Int
+-- >> Bool
+typeConstant :: Parser TConstant
 typeConstant = do
-  x <- many alpha <> many alphaNumeric
-  return $ TConst x
-  
-vectorType :: Parser T
-vectorType = do
-  lst <- between (char '(') (char ')') (termType `sepBy1` (spaces >> (char ',') >> spaces))
-  return $ TVector lst
+  x <- many1 alpha <> many alphaNumeric
+  return x
 
-locationType :: Parser T
-locationType = do
+-- | Home Constants are constants that are on the lambda row
+--
+-- Examples:
+-- >> Int <-> λ(Int)
+homeConstant :: Parser TT
+homeConstant = do
+  x <- typeConstant 
+  return $ T La x
+
+-- | Location Types are constants at a specific location
+--
+-- Examples
+-- >> In(Int)
+locationConstant :: Parser TT
+locationConstant = do
   l <- location
-  t <- between (spaces >> char '(') (spaces >> char ')') termType
-  return $ TLocat l t
+  t <- between (spaces >> char '(') (spaces >> char ')') typeConstant
+  return $ T l t
 
+-- | Empty type is empy
+--
+-- Examples:
+-- e => e
+-- "" => ""
 emptyType :: Parser T
 emptyType = do
-    char 'e' 
-    return $ TConst ""
+    void (char 'e') <|> spaces
+    return $ TConst []
+
+simpleType :: Parser T
+simpleType = do
+  do ts <- (homeConstant <|> locationConstant)  `sepBy1` (spaces >> (char ',') >> spaces)
+     return $ TConst ts
+  <|> emptyType
+
+nestedType :: Parser T
+nestedType = do
+  l <- location
+  ts <- between (spaces>>char '('>>spaces) (spaces >>char ')' >> spaces) termType
+  return $ TLocat l ts
 
 higherType :: Parser T
-higherType =  do
-  lst <- between (char '(') (char ')') (termType `sepBy1` (spaces >> (string "=>") >> spaces))
-  return $ foldr1 (:=>) lst
-    
-termType :: Parser T
-termType = try higherType <|> try locationType <|> vectorType <|> typeConstant
-                  
-  --choice [sepBy1 (between (spaces >> char '(') (spaces >> char ')') higherType)
---                          (between spaces spaces (char ','))
---                  , spaces >> char '_' >> return []] -- no Type 
+higherType = do
+  ts <- between (char '(') (char ')') (termType `sepBy1` (spaces >> (string "=>") >> spaces))
+  return $ foldr1 (:=>) ts
 
+termType :: Parser T
+termType = higherType <|> try nestedType <|> simpleType
+                  
 --------------------------------------------------------------------------------
 -- Aux
 sepparator :: Parser ()

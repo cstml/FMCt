@@ -33,6 +33,7 @@
         "sha256": "0px8k4lh5nhq6f7pxqw8yawl5494njv22z4rmssywqkanf1xjs32",
         "type": "tarball",
         "url": "https://github.com/NixOS/nixpkgs/archive/246b75a0d0d7da135a3e62c686b98975c30df42c.tar.gz",
-        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz",
+        "version": "20.09"
     }
 }

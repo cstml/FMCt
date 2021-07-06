@@ -6,6 +6,7 @@ Syntax module of the FMCt.
 -}
 module Syntax
   ( T(..)
+  , TT(..)
   , Tm(..)
   , Vv(..)
   , Lo(..)
@@ -39,17 +40,20 @@ infixr 9 :=>
 type TConstant = String -- ^ Type constants are strings, with void being represented by `""` or empty String.
 
 -- | Location Types are a Vector of Kinded FMCt Location parametrised type constants. 
-type T = Type TConstant
+data TT = T Lo TConstant
+        deriving (Eq, Ord, Show)
 
-data Type a = TConst a  -- ^ Type Constant.
+type T = Type TT 
+
+data Type a = TConst [a]  -- ^ Type Constant.
             | TLocat Lo (Type a) -- ^ Location Parametrised Type.
             | Type a :=> Type a -- ^ A FMC Type.
-            | TVector [Type a] -- ^ A Vector Type
             deriving (Eq, Ord)
 
 --------------------------------------------
 -- Location = {out, in, rnd, nd, x, γ, λ} --
 --------------------------------------------
+  
 -- | Predefined Locations of the FMC together with general locations.
 data Lo = Out              -- ^ User Output Location - can only be pushed to.
         | In               -- ^ User Input Location - can only be popped from.
@@ -76,9 +80,9 @@ instance (Show a) => Show (Type a) where
   show x = case x of
     TConst x -> show x
     TLocat l x -> show l ++ "(" ++ show x ++ ")"
-    t1 :=> t2 -> show t1 ++ " => " ++ show t2
-    TVector x -> "(" ++ (mconcat $ (++ ", ") . show <$> x) ++ ")"
-  
+    t1 :=> t2 -> mconcat ["(", show t1, " => ", show t2, ")"]
+    --TVector x -> "(" ++ (mconcat $ (++ ", ") . show <$> x) ++ ")"
+
 instance Show Tm where
   show x = case x of
     B v t l t' -> show l ++ "<" ++ v ++ ":" ++ show t ++ ">" ++ "." ++ show t'
@@ -86,3 +90,4 @@ instance Show Tm where
     V v t      -> v ++ "." ++ show t -- untyped version
 --    V v tt t   -> v ++ ":" ++ show tt ++  "." ++ show t -- typed version
     St          -> "*"
+

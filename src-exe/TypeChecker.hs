@@ -13,8 +13,7 @@ import Parsing
 import Text.Read (readMaybe)
 
 typeCheck :: Tm -> Either T TypeError
-typeCheck = \term -> runST $ do
-  return $ Left $ TConst "x"
+typeCheck = undefined 
 
 type TVar = String
 

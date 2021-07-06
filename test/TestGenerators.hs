@@ -69,30 +69,25 @@ genRandLocation = do Lo <$> genBinder
 -- Type Generators
 -- | Type Generator
 genType :: Gen T
-genType = oneof [genTypeConstant, genLocationType, genHigherType, genVectorType]
+genType = undefined
+--oneof [genTypeConstant, genLocationType, genHigherType]
 
--- | Constant Type Generator
-genTypeConstant :: Gen T
-genTypeConstant = do
-  x <- genBinder
-  return $ TConst x
+-- -- | Constant Type Generator
+-- genTypeConstant :: Gen T
+-- genTypeConstant = do
+--   x <- genBinder
+--   return $ TConst x
 
--- | Location Type Generator
-genLocationType :: Gen T
-genLocationType = do
-  x <- genType
-  l <- genLocation
-  return $ TLocat l x
+-- -- | Location Type Generator
+-- genLocationType :: Gen T
+-- genLocationType = do
+--   x <- genType
+--   l <- genLocation
+--   return $ TLocat l x
 
--- | Higher Type Generator
-genHigherType :: Gen T
-genHigherType = do
-  x <- genType
-  y <- genType
-  return $ x :=> y
-
--- | Vector Type Generator
-genVectorType :: Gen T
-genVectorType = do
-  x <- listOf (resize 2 genType)
-  return $ TVector x
+-- -- | Higher Type Generator
+-- genHigherType :: Gen T
+-- genHigherType = do
+--   x <- genType
+--   y <- genType
+--   return $ x :=> y
