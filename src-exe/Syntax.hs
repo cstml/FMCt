@@ -1,6 +1,6 @@
 {-|
 Module      : Syntax
-Description : Short description
+Description : Syntax module of the FMCt.
 
 Syntax module of the FMCt.
 -}
