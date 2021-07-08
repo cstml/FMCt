@@ -23,7 +23,7 @@ lint-watch:
 
 # Start a compilation watcher 
 compile-watch:
-	nix-shell -p ghcid --command 'ghcid --command "cabal repl Test"'
+	nix-shell -p ghcid --command 'ghcid --command "cabal repl"'
 
 # Make the documentation and automatically refresh it 
 haddock-watch:

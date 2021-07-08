@@ -4,11 +4,11 @@ Description : Syntax module of the FMCt.
 
 Syntax module of the FMCt.
 -}
-module Syntax
-  ( T(..)
+module FMCt.Syntax
+  ( T
   , TT(..)
   , Tm(..)
-  , Vv(..)
+  , Vv
   , Lo(..)
   , TConstant
   , Type(..)
@@ -74,20 +74,21 @@ instance Show Lo where
     Nd   -> "nd"
     Ho   -> "γ"
     La   -> "λ"
-    Lo x -> x
+    Lo y -> y
 
 instance (Show a) => Show (Type a) where
   show x = case x of
-    TConst x -> show x
-    TLocat l x -> show l ++ "(" ++ show x ++ ")"
+    TConst y -> show y
+    TLocat l y -> show l ++ "(" ++ show y ++ ")"
     t1 :=> t2 -> mconcat ["(", show t1, " => ", show t2, ")"]
     --TVector x -> "(" ++ (mconcat $ (++ ", ") . show <$> x) ++ ")"
 
 instance Show Tm where
   show x = case x of
     B v t l t' -> show l ++ "<" ++ v ++ ":" ++ show t ++ ">" ++ "." ++ show t'
-    P t l t'   -> "[" ++ show t ++ "]" ++ show l ++ "." ++ show t'
-    V v t      -> v ++ "." ++ show t -- untyped version
+    P t l t' -> "[" ++ show t ++ "]" ++ show l ++ "." ++ show t'
+    V v t -> v ++ "." ++ show t -- untyped version
 --    V v tt t   -> v ++ ":" ++ show tt ++  "." ++ show t -- typed version
+    E _ _ -> ""
     St          -> "*"
 

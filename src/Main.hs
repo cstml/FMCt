@@ -1,10 +1,10 @@
 module Main (main) where
-import Syntax
-import Parsing
-import Pretty
-import Evaluator
-import Examples
-import TypeChecker(typeCheck)
+import FMCt.Syntax
+import FMCt.Parsing
+import FMCt.Pretty
+import FMCt.Evaluator
+import FMCt.Examples
+import FMCt.TypeChecker(typeCheck)
 import Control.Monad(void, forM_)
 import Data.String (IsString(..))
 

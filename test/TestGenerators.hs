@@ -3,12 +3,12 @@ module TestGenerators
   , genType
   )
 where
-import Syntax
-import Parsing
-import Pretty
-import Evaluator
-import Examples
-import TypeChecker
+import FMCt.Syntax
+import FMCt.Parsing
+import FMCt.Pretty
+import FMCt.Evaluator
+import FMCt.Examples
+import FMCt.TypeChecker
 import Control.Monad(void, forM_)
 import Data.String (IsString(..))
 import qualified Data.Map as M
@@ -19,7 +19,7 @@ import Test.QuickCheck (Gen, arbitrary, sample, elements, oneof, listOf, sized, 
 -- Term Generators
 -- | Term Generator
 genTerm :: Gen Tm
-genTerm = oneof [genVariables, genStar, genApp, gen_Abs]
+genTerm = oneof [genVariables, genStar, genApp, genAbs]
 
 -- | Variable Generator
 genVariables :: Gen Tm
@@ -36,13 +36,13 @@ genApp = do
   l  <- genLocation
   return $ P t1 l t2
 
-gen_Abs :: Gen Tm
-gen_Abs = do
+genAbs :: Gen Tm
+genAbs = do
   b <- genBinder
   t <- genType
   l <- genLocation
   t'<- genTerm
-  return $  B b t l t'
+  return $ B b t l t'
 
 -- | Star Generator
 genStar :: Gen Tm
@@ -63,7 +63,7 @@ genPreDefLocation = elements [Out, In, Rnd, Nd, Ho, La]
 
 -- | Random Location Generator
 genRandLocation :: Gen Lo
-genRandLocation = do Lo <$> genBinder
+genRandLocation = Lo <$> genBinder
 
 --------------------------------------------------------------------------------
 -- Type Generators

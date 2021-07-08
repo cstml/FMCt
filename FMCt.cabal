@@ -1,39 +1,63 @@
-cabal-version:         2.4                      
-name:                  FMCt                      
-version:               0.1.0.0                      
-license:               BSD-3-Clause                      
-license-file:          LICENSE                      
-author:                Vlad Posmangiu Luchian                     
-maintainer:            cstmlcodes@gmail.com
-copyright:             "Copyright belongs to Vlad Posmangiu Luchian"
-category:              Language
-build-type:            Simple
-extra-source-files:    CHANGELOG.md,
-                       README.org
+cabal-version:          2.4                      
+name:                   FMCt                      
+version:                0.1.0.0                      
+license:                BSD-3-Clause                      
+license-file:           LICENSE                      
+author:                 Vlad Posmangiu Luchian                     
+maintainer:             cstmlcodes@gmail.com
+copyright:              "Copyright belongs to Vlad Posmangiu Luchian"
+category:               Language
+build-type:             Simple
+extra-source-files:     CHANGELOG.md,
+                        README.org
+                        
+common common-specs     
+  Ghc-Options:          -Wno-name-shadowing
+                        -- -Wall
+                        -- -Wcompat
+                        -- -Wincomplete-uni-patterns
+                        -- -Wredundant-constraints
+                        -- -Werror
+                        -- -Wincomplete-record-updates
+                        -- -Wredundant-constraints
+                        
+  build-depends:        base,
+                        containers,
+                        mtl,
+                        parsec,
+                        text
+                        
+  default-extensions:   OverloadedStrings,
+                        LambdaCase
+                        
+  default-language:     Haskell2010
+                        
+  hs-source-dirs:       src
+                        
+library                 
+  import:               common-specs
+                        
+  exposed-modules:      FMCt.Evaluator,
+                        FMCt.Syntax                     
+                        
+executable FMCt         
+  import:               common-specs
+  main-is:              Main.hs
+                        
+executable Test         
+  import:               common-specs
 
-executable FMCt
-  main-is:             Main.hs
-  other-extensions:    OverloadedStrings
-  build-depends:       base,
-                       containers,
-                       mtl,
-                       parsec,
-                       text                     
-  hs-source-dirs:      src-exe
-  default-language:    Haskell2010
+  main-is:              Main.hs
 
-executable Test
-  main-is:             Main.hs
-  other-extensions:    OverloadedStrings
-  -- just used for testing 
-  other-modules:       TestGenerators
-  build-depends:       base,
-                       containers,
-                       mtl,
-                       parsec,
-                       text,
-                       QuickCheck
-  hs-source-dirs:      src-exe,
-                       test
-  default-language:    Haskell2010
+  other-modules:        TestGenerators
+
+  build-depends:        base,
+                        containers,
+                        mtl,
+                        parsec,
+                        text,
+                        QuickCheck
+
+  hs-source-dirs:       test
+
 

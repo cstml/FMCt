@@ -1,9 +1,9 @@
-module Pretty
+module FMCt.Pretty
   ( printStack
   , printOutput
   )where
-import Syntax
-import Evaluator
+import FMCt.Syntax
+import FMCt.Evaluator
 import Data.Map as M
 
 printStack :: State -> String

@@ -1,4 +1,4 @@
-module Evaluator
+module FMCt.Evaluator
   ( eval
   , eval1
   , State
@@ -8,16 +8,14 @@ module Evaluator
   ) where
 
 import Data.Map (Map, (!?))
-import Data.String (IsString(..))
-import Syntax (Tm(..), Lo(..), Vv, T(..), Type(..), TT(..))
+import FMCt.Syntax (Tm(..), Lo(..), Vv, Type(..), TT(..))
 import Text.Read (readMaybe)
 import qualified Data.Map as M
 
 -- | Memory is a Map between a location and a list of Terms.
 type Memory = Map Lo [Tm]
-
 -- | Binds are a Map of Tms refering to a list of Terms.
-type Binds  = Map Vv [Tm]
+type Binds = Map Vv [Tm]
 
 -- | FMCt State is formed from a tuple of Memory and Binds
 type State  = (Memory, Binds)

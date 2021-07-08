@@ -1,17 +1,21 @@
-module Parsing
-    (
-      parseFMC
+module FMCt.Parsing
+    ( parseFMC
+    , parseType
     )
 where
 import Control.Monad (void)
-import Data.String (IsString(..))
-import Syntax 
+
+import FMCt.Syntax 
 import Text.ParserCombinators.Parsec
-import qualified Text.ParserCombinators.Parsec
 
 
 parseFMC :: String -> Tm
 parseFMC x = case parse term "FMCParser" x of
+  Right x -> x
+  Left  e -> error $ show e
+
+parseType :: String -> T
+parseType x = case parse termType "TypeParser" x of
   Right x -> x
   Left  e -> error $ show e
 
@@ -40,9 +44,7 @@ variable = do
   return $ V x t2
 
 star :: Parser Tm
-star = do
-  (eof >> return St)
-    <|> (char '*' >> return St)
+star = (eof >> return St) <|> (char '*' >> return St)
 
 location :: Parser Lo
 location = 
@@ -65,18 +67,14 @@ location =
 -- >> Int
 -- >> Bool
 typeConstant :: Parser TConstant
-typeConstant = do
-  x <- many1 alpha <> many alphaNumeric
-  return x
+typeConstant = many1 alpha <> many alphaNumeric
 
 -- | Home Constants are constants that are on the lambda row
 --
 -- Examples:
 -- >> Int <-> λ(Int)
 homeConstant :: Parser TT
-homeConstant = do
-  x <- typeConstant 
-  return $ T La x
+homeConstant = T La <$> typeConstant 
 
 -- | Location Types are constants at a specific location
 --
@@ -99,20 +97,20 @@ emptyType = do
     return $ TConst []
 
 simpleType :: Parser T
-simpleType = do
-  do ts <- (homeConstant <|> locationConstant)  `sepBy1` (spaces >> (char ',') >> spaces)
+simpleType = 
+  do ts <- (homeConstant <|> locationConstant)  `sepBy1` (spaces >> char ',' >> spaces)
      return $ TConst ts
   <|> emptyType
 
 nestedType :: Parser T
 nestedType = do
   l <- location
-  ts <- between (spaces>>char '('>>spaces) (spaces >>char ')' >> spaces) termType
+  ts <- between (spaces >> char '(' >> spaces) (spaces >> char ')' >> spaces) termType
   return $ TLocat l ts
 
 higherType :: Parser T
 higherType = do
-  ts <- between (char '(') (char ')') (termType `sepBy1` (spaces >> (string "=>") >> spaces))
+  ts <- between (char '(') (char ')') (termType `sepBy1` (spaces >> string "=>" >> spaces))
   return $ foldr1 (:=>) ts
 
 termType :: Parser T
