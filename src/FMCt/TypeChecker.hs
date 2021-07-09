@@ -110,25 +110,69 @@ data Derivation
   | Abstraction Judgement Derivation
   | Application Judgement Derivation
   | Fusion      Judgement Derivation Derivation
-  deriving Show 
-{-
+--  deriving Show 
+
+type DisplayLine
+  = ( ( Int     -- ^ Left Offset
+      , Int     -- ^ Middle Spacing
+      , Int     -- ^ Right Offset
+      )  
+    , [String]  -- ^ Line 
+    )
+
+-- -......_..._
+-- 0 .....0...0
+-- - .....-----
+-- 1 .......1..
+-- ------------
+-- .....1......
+
 instance Show Derivation where
   show = \case
-    Star -> overline "|- * : => "
-    Variable judge -> showJudgement judge
-    Abstraction judge deriv -> show deriv ++ "\n" ++ showJudgement judge
-    Application judge deriv -> show deriv ++ "\n" ++ showJudgement judge
+    Star
+      -> pLines [ ((0, 0, 0), ["----------"])
+                , ((0, 0, 0), ["|- * : => "])]
+    Variable j
+      -> pLines [ ((0, 0, 0), [replicate (length (showJudgement j)) '-'])
+                , ((0, 0, 0), [showJudgement j])]
+    Abstraction judge deriv
+      -> pLines [ ((0, 0, 0), [sJudg])
+                , ((0, 0, 0), [sDeriv])
+                ]
+    Fusion judge deriv deriv'
+      -> pLines [ 
+                ,
+                ]
+      where
+        sDeriv = show deriv
+        sJudg = showJudgement judge
+    Application judge deriv
+      -> show deriv ++ "\n" ++ showJudgement judge
     Fusion judge deriv1 deriv2 -> show deriv1
                                   ++ "  "
                                   ++ show deriv2
                                   ++ "\n"
                                   ++ showJudgement judge
    where
+     pLines :: [DisplayLine] -> String
+     pLines [] = ""
+     pLines (x:xs) = pLine x ++ pLines xs
+
+     pLine :: DisplayLine -> String
+     pLine ((l,m,r),c) = case c of
+       w:[] -> replicate l ' ' ++ w ++ replicate (m+r) ' ' ++ "\n"
+       w:w':[] -> replicate l ' '
+                  ++ show c
+                  ++ replicate m ' '
+                  ++ show w'
+                  ++ replicate r ' '
+                  ++ "\n"
+     
      overline st = replicate (length st) '-' ++ "\n" ++ st
 
      showJudgement :: Judgement -> String
      showJudgement (c,t,ty) = mconcat [showC c, " |- ", show t, " : ", show ty ]
-
+     
      showC [] = ""
      showC x  = mconcat $ show <$> x
 
@@ -148,7 +192,7 @@ instance Show Derivation where
          aux1 = mconcat [gap l,lines x ,gap c, lines y, gap r] ++ mconcat [gap l, show x, gap c, show y, gap r]
          lines z = replicate (length z) '-'
          gap x = replicate x ' '
--}    
+    
 
 type Term = Tm
 
@@ -170,8 +214,16 @@ derive term =
                        (derive t)
       B x t lo St -> Abstraction  (emptyCtx, term, simpleT)
                                   (derive (V x St))
-      
+      B x t lo t' -> Fusion (emptyCtx, term, simpleT)
+                            (derive (B x t lo St))
+                            (derive t')
+      P t lo St -> Application (emptyCtx, term, simpleT)
+                               (derive t)
+      P t lo t' -> Fusion (emptyCtx, term, simpleT)
+                          (derive (P t lo St))
+                          (derive t')               
 
 ex0 = derive (parseFMC "*")
 ex1 = derive (parseFMC "x.*")
 ex2 = derive (parseFMC "<x:a>.*")
+ex3 = derive (parseFMC "[x.*].*")
