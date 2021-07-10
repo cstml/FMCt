@@ -100,9 +100,10 @@ sameLo (TLocat l _)
 TConst (x:xs) >-< TConst (x':xs') = undefined
 TConst [] >-< y = Left y
   
-type Var = String 
-type Context = [(Var, T)]
-type Judgement = (Context, Tm, T)
+type Var = String
+type TypeVar = Either String T
+type Context = [(Var, TypeVar)]
+type Judgement = (Context, Tm, TypeVar)
 
 data Derivation
   = Star        Judgement
@@ -119,14 +120,6 @@ type DisplayLine
       )  
     , [String]  -- ^ Line 
     )
-
--- -......_..._
--- 0 .....0...0
--- - .....-----
--- 1 .......1..
--- ------------
--- .....1......
-
   
 nextJudgement :: Derivation -> [Judgement]
 nextJudgement = \case
@@ -147,15 +140,21 @@ instance Show Derivation where
   show d = unlines (reverse strs)
     where
       (_, _, _, strs) = showD d
-
+      showT :: TypeVar -> String
+      showT = \case
+        Left x -> x
+        Right y -> show y
+        
       showC :: Context -> String
-      showC c = let sCtx (x,t) =  x ++ ": " ++ show t in mconcat $ sCtx <$> c
+      showC = let sCtx (x,t) =  x ++ ": " ++ showT t ++ " " in \case
+        [] -> []
+        c  -> (flip (++) " ") . mconcat $ sCtx <$> c
 
       showJ :: Judgement -> String
-      showJ (cx,n,t) = showC cx ++ " |- " ++ show n ++ " : " ++ show t
+      showJ (cx,n,t) = mconcat $ showC cx : "|- " : show n : " : " : showT t : []
 
       showL :: Int -> Int -> Int -> String
-      showL l m r = replicate l ' ' ++ replicate m '-' ++ replicate r ' '
+      showL l m r = mconcat $ replicate l ' ' : replicate m '-' : replicate r ' ' : []
       
       showD :: Derivation -> (Int,Int,Int,[String])
       showD (Star j) = (0,k,0,[s,showL 0 k 0]) where s = showJ j; k = length s
@@ -169,16 +168,28 @@ instance Show Derivation where
         | k <= m     = (ll,k,rr, (replicate ll ' ' ++ x ++ replicate rr ' ')
                                  : showL  l m r
                                  : xs)
-        | k <= l+m+r = (ll,k,rr, (replicate ll ' ' ++ x ++ replicate rr ' ')
-                                 : showL ll k rr
-                                 : xs)
-        | otherwise  = (0,k,0, x
-                               : replicate k '-'
-                               : [ replicate (-ll) ' '
-                                   ++ y
-                                   ++ replicate (-rr) ' '
-                                 | y <- xs
-                                 ])
+
+        | k <= l+m+r
+        = ( ll
+          , k
+          , rr
+          , (replicate ll ' ' ++ x ++ replicate rr ' ')
+            : showL ll k rr
+            : xs
+          )
+
+        | otherwise
+        = ( 0
+          , k
+          , 0
+          , x
+            : replicate k '-'
+            : [ replicate (-ll) ' '
+                ++ y
+                ++ replicate (-rr) ' '
+              | y <- xs
+              ]
+          )
         where
           k = length x
           i = div (m - k) 2
@@ -188,41 +199,112 @@ instance Show Derivation where
       extend :: Int -> [String] -> [String]
       extend i strs = strs ++ repeat (replicate i ' ')
 
-      sidebyside :: (Int,Int,Int,[String]) -> (Int,Int,Int,[String]) -> (Int,Int,Int,[String])
+      sidebyside
+        :: (Int,Int,Int,[String])
+        -> (Int,Int,Int,[String])
+        -> (Int,Int,Int,[String])
+        
       sidebyside (l1,m1,r1,d1) (l2,m2,r2,d2)
-        | length d1 > length d2 = ( l1 , m1+r1+2+l2+m2 , r2 , [ x ++ "  " ++ y | (x,y) <- zip d1 (extend (l2+m2+r2) d2)])
-        | otherwise             = ( l1 , m1+r1+2+l2+m2 , r2 , [ x ++ "  " ++ y | (x,y) <- zip (extend (l1+m1+r1) d1) d2])
+        | length d1 > length d2
+        = ( l1
+          , m1+r1+2+l2+m2
+          , r2
+          , [ x ++ "  " ++ y
+            | (x,y) <- zip d1 (extend (l2+m2+r2) d2)
+            ]
+          )
+        | otherwise
+        = ( l1
+          , m1+r1+2+l2+m2
+          , r2
+          , [ x ++ "  " ++ y
+            | (x,y) <- zip (extend (l1+m1+r1) d1) d2
+            ]
+          )
 
 type Term = Tm
 
-derive :: Term -> Derivation
-derive term =
+freshTypeVars :: [TypeVar]
+freshTypeVars = Left <$> [ mconcat $ [[x],[z],show y]
+             | y <- [1..]
+             , x <- ['A'..'Z']
+             , z <- ['A'..'Z']
+             ]
+splitStream :: [a] -> ([a],[a])
+splitStream x = (l,r) where
+  l = snd <$> (filter ( odd . fst ) $ zip [1..] x)
+  r = snd <$> (filter ( not . odd . fst ) $ zip [1..] x)              
+
+-- | First step towards a derivation is to create the AST
+derive0 :: Term -> Derivation
+derive0 = derive0' freshTypeVars
+  where
+    derive0' :: [TypeVar] -> Term -> Derivation
+    derive0' stream term =
+      let
+        emptyCtx :: Context
+        emptyCtx = []
+
+        left = fst . splitStream . tail
+        right = snd . splitStream . tail
+      in
+        case term of
+          St
+            -> Star (emptyCtx, term, head stream)
+          V x St
+            -> Variable (emptyCtx, term, head stream)
+          V x t
+            -> Fusion
+                 (emptyCtx, term, head stream)
+                 (derive0' (left stream) (V x St))
+                 (derive0' (right stream) t)
+          B x t lo St
+            -> Abstraction
+                 (emptyCtx, term, head stream)
+                 (derive0' (tail stream) (V x St))
+          B x t lo t'
+            -> Fusion
+                 (emptyCtx, term, head stream)
+                 (derive0' (left stream) (B x t lo St))
+                 (derive0' (right stream) t')
+          P t lo St
+            -> Application
+                 (emptyCtx, term, head stream)
+                 (derive0' (tail stream) t)
+          P t lo t'
+            -> Fusion
+                 (emptyCtx, term, head stream)
+                 (derive0' (left stream) (P t lo St))
+                 (derive0' (right stream) t')               
+
+ex0 = derive0 (parseFMC "*")
+ex1 = derive0 (parseFMC "x.*")
+ex2 = derive0 (parseFMC "<x:a>.<x:a>.*")
+ex3 = derive0 (parseFMC "[x.*].*")
+ex4 = derive0 (parseFMC "x.[x.<x:a>.*].*")
+
+-- | Second step is to add our known variables to the context
+derive1 :: Context -> Term -> Derivation
+derive1 ctx term = 
   let
-    emptyCtx :: Context
-    emptyCtx = []
+    simpleT :: TypeVar
+    simpleT = Right $ TConst [T Ho "a"] :=> TConst [T Ho "a"]
+  in case term of  
+      St -> Star (ctx, St, simpleT)
+      V x St -> Variable (ctx, term, simpleT)
+      V x t  -> Fusion (ctx, term, simpleT) (derive1 ctx (V x St)) (derive1 ctx t)
+      B x t lo St -> Abstraction (ctx, term, simpleT) (derive1 nctx (V x St))
+        where
+          nctx =  (x, Right t) : ctx
+      B x t lo t' -> Fusion (ctx, term, simpleT) (derive1 ctx (B x t lo St)) (derive1 ctx t')
+        where
+          nctx =  (x, Right t): ctx      
+      P t lo St -> Application (ctx, term, simpleT) (derive0 t)
+      P t lo t' -> Fusion (ctx, term, simpleT) (derive1 ctx (P t lo St)) (derive1 ctx t')
 
-    simpleT :: T
-    simpleT = TConst [T Ho "a"] :=> TConst [T Ho "a"]
-    
-  in
-    case term of
-      St -> Star (emptyCtx, term, simpleT)
-      V x St -> Variable (emptyCtx, term, simpleT)
-      V x t  -> Fusion (emptyCtx, term, simpleT)
-                       (derive (V x St))
-                       (derive t)
-      B x t lo St -> Abstraction  (emptyCtx, term, simpleT)
-                                  (derive (V x St))
-      B x t lo t' -> Fusion (emptyCtx, term, simpleT)
-                            (derive (B x t lo St))
-                            (derive t')
-      P t lo St -> Application (emptyCtx, term, simpleT)
-                               (derive t)
-      P t lo t' -> Fusion (emptyCtx, term, simpleT)
-                          (derive (P t lo St))
-                          (derive t')               
-
-ex0 = derive (parseFMC "*")
-ex1 = derive (parseFMC "x.*")
-ex2 = derive (parseFMC "<x:a>.<x:a>.*")
-ex3 = derive (parseFMC "[x.*].*")
+ex01 = derive1 [] (parseFMC "*")
+ex11 = derive1 [] (parseFMC "x.*")
+ex21 = derive1 [] (parseFMC "<x:a>.<x:a>.*")
+ex31 = derive1 [] (parseFMC "[x.*].*")
+ex41 = derive1 [] (parseFMC "x.[x.<x:a>.*].*")
+ex51 = derive1 [] (parseFMC "<x:a>.x.*")
