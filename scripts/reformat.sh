@@ -1,6 +1,6 @@
-for f in ./src-exe/*.hs
+for f in ./src/**/*.hs
 do
     echo "Reformatting $f"
-    fourmolu -i $f # -i is inplace
+    fourmolu -m inplace $f 
 done
     
