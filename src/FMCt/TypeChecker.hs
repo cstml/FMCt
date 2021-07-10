@@ -105,7 +105,7 @@ type Context = [(Var, T)]
 type Judgement = (Context, Tm, T)
 
 data Derivation
-  = Star 
+  = Star        Judgement
   | Variable    Judgement
   | Abstraction Judgement Derivation
   | Application Judgement Derivation
@@ -127,72 +127,71 @@ type DisplayLine
 -- ------------
 -- .....1......
 
+  
+nextJudgement :: Derivation -> [Judgement]
+nextJudgement = \case
+  Star _ -> []
+  Variable _ -> []
+  Application _ d -> getJudgement <$> [d]
+  Abstraction _ d -> getJudgement <$> [d]                    
+  Fusion _ d1 d2  -> getJudgement <$> [d1, d2]
+
+getJudgement = \case
+  Star j -> j
+  Variable j -> j
+  Application j _ -> j
+  Abstraction j _ -> j
+  Fusion j _ _ -> j
+
 instance Show Derivation where
-  show = \case
-    Star
-      -> pLines [ ((0, 0, 0), ["----------"])
-                , ((0, 0, 0), ["|- * : => "])]
-    Variable j
-      -> pLines [ ((0, 0, 0), [replicate (length (showJudgement j)) '-'])
-                , ((0, 0, 0), [showJudgement j])]
-    Abstraction judge deriv
-      -> pLines [ ((0, 0, 0), [sJudg])
-                , ((0, 0, 0), [sDeriv])
-                ]
-    Fusion judge deriv deriv'
-      -> pLines [ 
-                ,
-                ]
-      where
-        sDeriv = show deriv
-        sJudg = showJudgement judge
-    Application judge deriv
-      -> show deriv ++ "\n" ++ showJudgement judge
-    Fusion judge deriv1 deriv2 -> show deriv1
-                                  ++ "  "
-                                  ++ show deriv2
-                                  ++ "\n"
-                                  ++ showJudgement judge
-   where
-     pLines :: [DisplayLine] -> String
-     pLines [] = ""
-     pLines (x:xs) = pLine x ++ pLines xs
+  show d = unlines (reverse strs)
+    where
+      (_, _, _, strs) = showD d
 
-     pLine :: DisplayLine -> String
-     pLine ((l,m,r),c) = case c of
-       w:[] -> replicate l ' ' ++ w ++ replicate (m+r) ' ' ++ "\n"
-       w:w':[] -> replicate l ' '
-                  ++ show c
-                  ++ replicate m ' '
-                  ++ show w'
-                  ++ replicate r ' '
-                  ++ "\n"
-     
-     overline st = replicate (length st) '-' ++ "\n" ++ st
+      showC :: Context -> String
+      showC c = let sCtx (x,t) =  x ++ ": " ++ show t in mconcat $ sCtx <$> c
 
-     showJudgement :: Judgement -> String
-     showJudgement (c,t,ty) = mconcat [showC c, " |- ", show t, " : ", show ty ]
-     
-     showC [] = ""
-     showC x  = mconcat $ show <$> x
+      showJ :: Judgement -> String
+      showJ (cx,n,t) = showC cx ++ " |- " ++ show n ++ " : " ++ show t
 
-     under :: (Int, [String]) -> String  -> (Int, [String])
-     under (lineLength, list) string = (newLength, string : list)
-       where
-         sLength = length string
-         newLength = if sLength > lineLength then sLength else lineLength
-     
-     sideBySide :: (Int, Int, Int, [String]) -> (Int, Int, Int, [String]) -> (Int, Int, Int, [String])
-     sideBySide = undefined
+      showL :: Int -> Int -> Int -> String
+      showL l m r = replicate l ' ' ++ replicate m '-' ++ replicate r ' '
+      
+      showD :: Derivation -> (Int,Int,Int,[String])
+      showD (Star j) = (0,k,0,[s,showL 0 k 0]) where s = showJ j; k = length s
+      showD (Variable j) = (0,k,0,[s,showL 0 k 0]) where s = showJ j; k = length s
+      showD (Abstraction j d) = addrule (showJ j) (showD d)
+      showD (Application j d) = addrule (showJ j) (showD d)
+      showD (Fusion j d e) = addrule (showJ j) (sidebyside (showD d) (showD e))
 
-     printStack :: (Int, Int, Int, [String]) -> String
-     printStack (_,_,_, [])  = ""
-     printStack (l,c,r, (x:y:[]) ) = aux1
-       where
-         aux1 = mconcat [gap l,lines x ,gap c, lines y, gap r] ++ mconcat [gap l, show x, gap c, show y, gap r]
-         lines z = replicate (length z) '-'
-         gap x = replicate x ' '
-    
+      addrule :: String -> (Int,Int,Int,[String]) -> (Int,Int,Int,[String])
+      addrule x (l,m,r,xs)
+        | k <= m     = (ll,k,rr, (replicate ll ' ' ++ x ++ replicate rr ' ')
+                                 : showL  l m r
+                                 : xs)
+        | k <= l+m+r = (ll,k,rr, (replicate ll ' ' ++ x ++ replicate rr ' ')
+                                 : showL ll k rr
+                                 : xs)
+        | otherwise  = (0,k,0, x
+                               : replicate k '-'
+                               : [ replicate (-ll) ' '
+                                   ++ y
+                                   ++ replicate (-rr) ' '
+                                 | y <- xs
+                                 ])
+        where
+          k = length x
+          i = div (m - k) 2
+          ll = l+i
+          rr = r+m-k-i
+
+      extend :: Int -> [String] -> [String]
+      extend i strs = strs ++ repeat (replicate i ' ')
+
+      sidebyside :: (Int,Int,Int,[String]) -> (Int,Int,Int,[String]) -> (Int,Int,Int,[String])
+      sidebyside (l1,m1,r1,d1) (l2,m2,r2,d2)
+        | length d1 > length d2 = ( l1 , m1+r1+2+l2+m2 , r2 , [ x ++ "  " ++ y | (x,y) <- zip d1 (extend (l2+m2+r2) d2)])
+        | otherwise             = ( l1 , m1+r1+2+l2+m2 , r2 , [ x ++ "  " ++ y | (x,y) <- zip (extend (l1+m1+r1) d1) d2])
 
 type Term = Tm
 
@@ -207,7 +206,7 @@ derive term =
     
   in
     case term of
-      St -> Star
+      St -> Star (emptyCtx, term, simpleT)
       V x St -> Variable (emptyCtx, term, simpleT)
       V x t  -> Fusion (emptyCtx, term, simpleT)
                        (derive (V x St))
@@ -225,5 +224,5 @@ derive term =
 
 ex0 = derive (parseFMC "*")
 ex1 = derive (parseFMC "x.*")
-ex2 = derive (parseFMC "<x:a>.*")
+ex2 = derive (parseFMC "<x:a>.<x:a>.*")
 ex3 = derive (parseFMC "[x.*].*")
