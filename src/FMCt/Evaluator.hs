@@ -8,7 +8,7 @@ module FMCt.Evaluator
   ) where
 
 import Data.Map (Map, (!?))
-import FMCt.Syntax (Tm(..), Lo(..), Vv, Type(..), TT(..))
+import FMCt.Syntax (Tm(..), Lo(..), Vv, Type(..), LTConstant(..))
 import Text.Read (readMaybe)
 import qualified Data.Map as M
 
@@ -86,7 +86,7 @@ evaluate (V x c) st@(m,b) = evaluate c nt -- places value @ lambda pos
                 _       -> False                
 evaluate (B v ty lo tm) m = evaluate tm (bind v lo m)        -- pops and binds the term
 evaluate (P te l t') st@(m,b) = evaluate t' (push te l st)   -- pushes the term
-evaluate (E t    t') st@(m,b) = evaluate t' (evaluate t st)  -- evaluates the term 
+--evaluate (E t    t') st@(m,b) = evaluate t' (evaluate t st)  -- evaluates the term 
 
 -- | The Empty FMCt Evaluator state.
 emptyMem :: State

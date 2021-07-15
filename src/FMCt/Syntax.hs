@@ -5,13 +5,15 @@ Description : Syntax module of the FMCt.
 Syntax module of the FMCt.
 -}
 module FMCt.Syntax
-  ( T
-  , TT(..)
-  , Tm(..)
-  , Vv
+  ( LTConstant(..)
   , Lo(..)
+  , T
   , TConstant
+  , TType
+  , TVariable
+  , Tm(..)
   , Type(..)
+  , Vv
   )
 where
 
@@ -26,7 +28,7 @@ type Vv = String            -- ^ Variable Value is represeted by a String.
 data Tm = V Vv Tm          -- ^ Variable
         | P Tm Lo Tm       -- ^ Application or Push: [M]a.N
         | B Vv T  Lo Tm    -- ^ Abstraction or Pop:  a\<x:t\>.N
-        | E Tm Tm          -- ^ Evaluate Term -- might drop
+--        | E Tm Tm          -- ^ Evaluate Term -- might drop
         | St               -- ^ Star 
         deriving (Eq, Ord)
 
@@ -39,16 +41,26 @@ infixr 9 :=>
 -- | Type Constants
 type TConstant = String -- ^ Type constants are strings, with void being represented by `""` or empty String.
 
--- | Location Types are a Vector of Kinded FMCt Location parametrised type constants. 
-data TT = T Lo TConstant
-        deriving (Eq, Ord, Show)
+-- | Type Variables
+type TVariable = String  -- ^ Type variables are placeholders that can be replaced with any type.
 
-type T = Type TT 
+-- | Location Type Constant
+data LTConstant = T Lo TConstant
+        deriving (Eq, Ord)
 
-data Type a = TConst [a]  -- ^ Type Constant.
+type T = Type LTConstant
+
+-- | Type data structure
+data Type a = TConst [a]         -- ^ Type Vector.
             | TLocat Lo (Type a) -- ^ Location Parametrised Type.
-            | Type a :=> Type a -- ^ A FMC Type.
+            | Type a :=> Type a  -- ^ A FMC Type.
             deriving (Eq, Ord)
+
+-- | Term Types hold either a Type Variable or a Location Type Constant
+type TType = Type (Either TVariable LTConstant)
+
+-- | TypedTerms
+type TTm = (Tm, TType)
 
 --------------------------------------------
 -- Location = {out, in, rnd, nd, x, γ, λ} --
@@ -62,6 +74,9 @@ data Lo = Out              -- ^ User Output Location - can only be pushed to.
         | Ho               -- ^ Home stack : γ ∈ A.
         | La               -- ^ Default push Location: λ ∈ A.
         | Lo  String       -- ^ any other location: x ∈ A.
+        | InInt            -- ^ User Input Location for Ints
+        | InBool           -- ^ User Input Location for Bools
+        | InChar           -- ^ User Input Location for Chars
         deriving (Eq, Ord)
   
 --------------------------------------------------------------------------------
@@ -89,6 +104,16 @@ instance Show Tm where
     P t l t' -> "[" ++ show t ++ "]" ++ show l ++ "." ++ show t'
     V v t -> v ++ "." ++ show t -- untyped version
 --    V v tt t   -> v ++ ":" ++ show tt ++  "." ++ show t -- typed version
-    E _ _ -> ""
+--    E _ _ -> ""
     St          -> "*"
 
+instance Functor Type where
+  fmap f term
+    = case term of
+        TConst x -> TConst $ f <$> x
+        TLocat l x -> TLocat l $ f <$> x
+        a :=> b -> (f <$> a) :=> (f <$> b)
+
+instance Show LTConstant where
+  show (T l c) = mconcat [show l, "(", c, ")"]
+                  

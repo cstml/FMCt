@@ -38,7 +38,9 @@ library
   import:               common-specs
                         
   exposed-modules:      FMCt.Evaluator,
-                        FMCt.Syntax                     
+                        FMCt.Syntax,
+                        FMCt.TypeChecker,
+                        FMCt.Parsing                     
                         
 executable FMCt         
   import:               common-specs

@@ -5,7 +5,7 @@ module FMCt.Parsing
 where
 import Control.Monad (void)
 
-import FMCt.Syntax 
+import FMCt.Syntax (LTConstant(..), Tm(..), Lo(..), T(..), Type(..), TConstant)
 import Text.ParserCombinators.Parsec
 
 
@@ -73,14 +73,14 @@ typeConstant = many1 alpha <> many alphaNumeric
 --
 -- Examples:
 -- >> Int <-> λ(Int)
-homeConstant :: Parser TT
+homeConstant :: Parser LTConstant
 homeConstant = T La <$> typeConstant 
 
 -- | Location Types are constants at a specific location
 --
 -- Examples
 -- >> In(Int)
-locationConstant :: Parser TT
+locationConstant :: Parser LTConstant
 locationConstant = do
   l <- location
   t <- between (spaces >> char '(') (spaces >> char ')') typeConstant
