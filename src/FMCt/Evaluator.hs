@@ -8,12 +8,13 @@ module FMCt.Evaluator
   ) where
 
 import Data.Map (Map, (!?))
-import FMCt.Syntax (Tm(..), Lo(..), Vv, Type(..), LTConstant(..))
+import FMCt.Syntax (Tm(..), Lo(..), Vv, Type(..))
 import Text.Read (readMaybe)
 import qualified Data.Map as M
 
 -- | Memory is a Map between a location and a list of Terms.
 type Memory = Map Lo [Tm]
+
 -- | Binds are a Map of Tms refering to a list of Terms.
 type Binds = Map Vv [Tm]
 
@@ -109,9 +110,10 @@ evalIO st@(m,b) = case m !? Out of
                     Just []      -> return ()
                     Nothing      -> return ()
 
+-- Some simple examples
 ex7 = eval1 $                  -- [1.2.*].<x:t>.x.3.4
       P (V "1" $ V "2" St) La  -- [1 . 2 . *]
-      (B "x" (TConst [] :=> TConst [T Ho "a"]) La             -- <x:t> 
+      (B "x" (TVec [] :=> TVec [TLoc Ho $ TCon "a"]) La             -- <x:t> 
         $ V "x"                -- x
         $ V "3"                -- 3
         $ V "4"                -- 4
@@ -122,7 +124,7 @@ ex7 = eval1 $                  -- [1.2.*].<x:t>.x.3.4
 ex8 = eval1          -- 1 . 2 . <x:t>_ . x . +
       (V "1"         -- 1
        $ V "2"       -- 2
-       $ B "x" (TConst [T Ho "a"]) Ho -- <x>
+       $ B "x" (TVec [TLoc Ho $ TCon "a"]) Ho -- <x>
        $ V "x"       -- x
        $ V "+" St)   -- +
 

@@ -1,7 +1,7 @@
 module FMCt.TypeChecker
-  ( typeCheck
-  , TypeError(..)
-  )
+--  ( typeCheck
+--  , TypeError(..)
+--  )
 where
 
 import FMCt.Syntax
@@ -13,7 +13,7 @@ import Control.Monad.ST
 import FMCt.Parsing
 import Text.Read (readMaybe)
 import Control.Applicative
-
+{-
 -- | TypeChecking Error.
 data TypeError
   = SimpleErr String          -- ^ A Simple Error
@@ -683,3 +683,4 @@ x.[*].[*].y.*
 
 -}
 
+-}
