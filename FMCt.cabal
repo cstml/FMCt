@@ -37,11 +37,12 @@ common common-specs
 library                 
   import:               common-specs
                         
-  exposed-modules:      FMCt.Evaluator,
-                        FMCt,
+  exposed-modules:      FMCt,
+                        FMCt.Evaluator,
                         FMCt.Syntax,
                         FMCt.TypeChecker,
-                        FMCt.Parsing                     
+                        FMCt.Parsing,
+                        FMCt.Pretty
                         
 executable FMCt         
   import:               common-specs
