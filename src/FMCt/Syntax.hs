@@ -78,7 +78,7 @@ instance Show Lo where
 
 instance Show (Type String)  where
   show x = case x of
-    TCon "" -> "*"
+    TCon "" -> " "
     TCon y -> y
     TVec x -> init $ mconcat $ (flip (++) ",") <$> show <$> x
     TLoc l y -> show l ++ "(" ++ show y ++ ")"
@@ -91,7 +91,6 @@ instance Show Tm where
     P t l t' -> "[" ++ show t ++ "]" ++ show l ++ "." ++ show t'
     V v t -> v ++ "." ++ show t -- untyped version
 --    V v tt t   -> v ++ ":" ++ show tt ++  "." ++ show t -- typed version
---    E _ _ -> ""
     St          -> "*"
 
 instance Functor Type where
