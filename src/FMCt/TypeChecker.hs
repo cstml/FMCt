@@ -1,7 +1,7 @@
 module FMCt.TypeChecker
---  ( typeCheck
---  , TypeError(..)
---  )
+  ( typeCheck
+  , TypeError(..)
+  )
 where
 
 import FMCt.Syntax
@@ -13,7 +13,7 @@ import Control.Monad.ST
 import FMCt.Parsing
 import Text.Read (readMaybe)
 import Control.Applicative
-{-
+
 -- | TypeChecking Error.
 data TypeError
   = SimpleErr String          -- ^ A Simple Error
@@ -71,38 +71,15 @@ higherType = fmap TI $ TypeCheck $ \term -> f term
               -> Left Nothing
 
 
--- | Returns if a type is the first to occur at a location
+-- | Returns if a type occurs inside a type.
 occurs :: T -> T -> Bool
-occurs tt@(TConst ((T l t):[])) =
-  \case 
-    TConst (x:xs)
-      -> case x of
-           T l' t'
-             -> if l == l' then
-                  if t == t' then True
-                  else False
-                else occurs tt (TConst xs)
-    _ -> False
-
-sameLo :: T -> T -> Bool
-sameLo (TConst ((T l _) :[]))
-  = \case
-  (TConst ((T l' _):[])) -> l == l'
-  (TLocat l' _) -> l == l'
-  _ -> False
+occurs t t'
+  | t == t'   = True
+  | otherwise =  case t' of
+      TCon _ -> False
   
-sameLo (TLocat l _)
-  = \case
-  (TLocat l' _) -> l == l'
-  (TConst ((T l' _):[])) -> l == l'
-  _ -> False
-
-(>-<) :: T -> T -> Either T TypeError
-TConst (x:xs) >-< TConst (x':xs') = undefined
-TConst [] >-< y = Left y
-  
-type Context = [(Term, TType)]
-type Judgement = (Context, Term, TType)
+type Context = [(Term, T)]
+type Judgement = (Context, Term, T)
 
 data Derivation
   = Star        Judgement
@@ -132,7 +109,7 @@ instance Show Derivation where
   show d = unlines (reverse strs)
     where
       (_, _, _, strs) = showD d
-      showT :: TType -> String
+      showT :: T -> String
       showT = show 
         
       showC :: Context -> String
@@ -213,24 +190,26 @@ instance Show Derivation where
           )
 
 type Term = Tm
-type TypedTerm = (Term, TType)
+type TypedTerm = (Term, T)
 
-freshTypeVar :: [TVariable]
-freshTypeVar = [ mconcat $ [[x],[z],show y]
+type TVariable = String
+
+freshTypeVar :: [T]
+freshTypeVar = TCon <$> [ mconcat $ [[x],[z],show y]
             | y <- [1..]
             , x <- ['A'..'Z']
             , z <- ['A'..'Z']
             ]
 
-freshVarTypes :: [TType]
-freshVarTypes =  (\x -> Left <$> TConst [x])  <$> freshTypeVar
+freshVarTypes :: [T]
+freshVarTypes =  (\x -> TVec [x])  <$> freshTypeVar
 
 splitStream :: [a] -> ([a],[a])
 splitStream x = (l,r) where
   l = snd <$> (filter ( odd . fst ) $ zip [1..] x)
   r = snd <$> (filter ( not . odd . fst ) $ zip [1..] x)              
 
-{-
+
 -- | First step towards a derivation is to create the AST
 derive0 :: Term -> Derivation
 derive0 term = 
@@ -241,7 +220,7 @@ derive0 term =
     left = fst . splitStream . tail
     right = snd . splitStream . tail
 
-    emptyType = Left <$> (TConst $  ["a"])
+    emptyType = TCon "" :=> TCon ""
       in
         case term of
           St
@@ -283,8 +262,8 @@ ex4 = derive0 (parseFMC "x.[x.<x:a>.*].*")
 derive1 :: Term -> Derivation
 derive1 = derive1' freshVarTypes
   where
-    eT :: TType
-    eT = Left <$> TConst []
+    eT :: T
+    eT = TVec []
 
     gCtx :: Derivation -> Context
     gCtx = \case
@@ -294,7 +273,7 @@ derive1 = derive1' freshVarTypes
       Application (c,_,_) _ -> c
       Fusion (c,_,_) _ _ -> c
 
-    derive1' :: [TType] -> Term -> Derivation
+    derive1' :: [T] -> Term -> Derivation
     derive1' stream term
       = case term of  
           St -> Star ([] ,St ,eT)
@@ -319,16 +298,13 @@ derive1 = derive1' freshVarTypes
               ty = head stream
               nStream = tail stream
               nDeriv = derive1' nStream (V x St)
-              nctx =  (V x St, Right <$> t) : (gCtx nDeriv)
-          B x t lo t' -> Fusion
-                         (nctx, term, ty)
-                         dLeft
-                         dRight
-                                   
+              nctx =  (V x St, t) : (gCtx nDeriv)
+              
+          B x t lo t' -> Fusion (nctx, term, ty) dLeft dRight                                  
             where
               dLeft = derive1' nStreamL (B x t lo St)
               dRight = derive1' nStreamR  t'
-              nctx =  (V x St, Right <$> t): (gCtx dLeft) ++ (gCtx dRight)
+              nctx =  (V x St, t): (gCtx dLeft) ++ (gCtx dRight)
               ty = head stream
               nStream = tail stream
               (nStreamL, nStreamR) = splitStream nStream
@@ -357,14 +333,13 @@ ex31  = derive1 (parseFMC "[x.*].*")
 ex41  = derive1 (parseFMC "x.[x.<x:a>.*].*")
 ex51  = derive1 (parseFMC "<x:a>.x.*")
 
-type Subs = (TType,TType)
 {-
 -- | Second step is to add our known variables to the context
 derive2 :: Term -> Derivation
 derive2 = derive2' freshVarTypes []
   where
-    eT :: TType
-    eT = Left <$> TConst []
+    eT :: T
+    eT = Left <$> TVec []
 
     gCtx :: Derivation -> Context
     gCtx = \case
@@ -374,11 +349,11 @@ derive2 = derive2' freshVarTypes []
       Application (c,_,_) _ -> c
       Fusion (c,_,_) _ _ -> c
 
-    getType :: Term -> Context -> TType
+    getType :: Term -> Context -> T
     getType t [] = error $ "Cannot Find type for term: " ++ show t ++ " in context. Have you defined it prior to calling it ?"
     getType t ((t',ty):xs) = if t == t' then ty else getType t xs
     
-    derive2' :: [TType] -> Context -> Term -> Derivation
+    derive2' :: [T] -> Context -> Term -> Derivation
     derive2' stream ctx term 
       = case term of  
           St -> Star ([] ,St ,eT)
@@ -436,13 +411,13 @@ ex42 = derive2 (parseFMC "[x.*].*")
 ex52 = derive2 (parseFMC "[<x:a>.x.*].*")
 ex62 = derive2 (parseFMC "<x:a>.x.*")
 -}
--}
+
 -- | Second step is to add our known variables to the context
 derive3 :: Term -> Derivation
-derive3 = derive3' freshVarTypes [(St, Right <$> TConst [] :=> TConst[])]
+derive3 = derive3' freshVarTypes [(St, TVec [] :=> TVec[])]
   where
-    eT :: TType
-    eT = Left <$> TConst []
+    eT :: T
+    eT = TVec []
 
     gCtx :: Derivation -> Context
     gCtx = \case
@@ -452,7 +427,7 @@ derive3 = derive3' freshVarTypes [(St, Right <$> TConst [] :=> TConst[])]
       Application (c,_,_) _ -> c
       Fusion (c,_,_) _ _ -> c
     
-    getType :: Term -> Context -> TType
+    getType :: Term -> Context -> T
     getType t [] = error $ "Cannot Find type for term: " ++ show t
                          ++ " in context. Have you defined it prior to calling it ?"
     getType t ((t',ty):xs) = if t == t' then ty else getType t xs
@@ -469,7 +444,7 @@ derive3 = derive3' freshVarTypes [(St, Right <$> TConst [] :=> TConst[])]
                       ++ show term ++ ":" ++ show ty ++ " and "
                       ++ show term' ++ ":" ++ show ty'
     
-    derive3' :: [TType] -> Context -> Term -> Derivation
+    derive3' :: [T] -> Context -> Term -> Derivation
     derive3' stream ctx term 
       = case term of  
           St -> Star (ctx ,St ,eT)
@@ -488,17 +463,17 @@ derive3 = derive3' freshVarTypes [(St, Right <$> TConst [] :=> TConst[])]
               
           B x t lo St -> Abstraction (ctx', term, ty) nDeriv
             where              
-              ty = Right <$> (TLocat lo t :=> TConst [])
+              ty = TLoc lo t :=> TVec []
               nStream = tail stream
               nDeriv = derive3' nStream nctx (V x St)
-              nctx = (V x St, Right <$> t) : ctx 
+              nctx = (V x St, t) : ctx 
               ctx' = (term,ty) : gCtx nDeriv  
               
           B x t lo t' -> Fusion (ctx', term, ty) dLeft dRight                                   
             where
               dLeft = derive3' nStreamL ctx (B x t lo St)
               dRight = derive3' nStreamR  nctx t'
-              nctx = (V x St, Right <$> t) : ctx
+              nctx = (V x St, t) : ctx
               ctx' = (term,ty) : mergeCtx (gCtx dLeft) (gCtx dRight)
               ty = head stream
               nStream = tail stream
@@ -506,7 +481,7 @@ derive3 = derive3' freshVarTypes [(St, Right <$> TConst [] :=> TConst[])]
 
           P t lo St -> Application (ctx', term, ty) nDeriv
             where
-              ty = TConst [] :=> getType t ctx'
+              ty = TVec [] :=> getType t ctx'
               nDeriv = derive3' nStream ctx t
               nStream = tail stream
               ctx' = (term,ty) : gCtx nDeriv
@@ -531,130 +506,6 @@ ex63 = derive3 (parseFMC "[<x:(=>a)>.x.*].<y:a>.*")
 ex73 = derive3 (parseFMC "[*].*")
 ex83 = derive3 (parseFMC "[*].<x:(=>)>.*")
 
-
-{-
--- | Second step is to add our known variables to the context
-derive4 :: Term -> Derivation
-derive4 = derive4' freshVarTypes [(St, Right <$> TConst [] :=> TConst[])]
-  where
-    eT :: TType
-    eT = Left <$> TConst []
-
-    gCtx :: Derivation -> Context
-    gCtx = \case
-      Star (c,_,_) -> c
-      Variable (c,_,_) -> c
-      Abstraction (c,_,_) _ -> c
-      Application (c,_,_) _ -> c
-      Fusion (c,_,_) _ _ -> c
-
-    getJType :: Judgement -> TType
-    getJType (_,_,t) = t
-
-    getLocation :: Lo -> TType -> TType
-    getLocation l
-      = \case
-      TConst []     -> error "Cannot Find any"
-      TConst (x:xs) -> case x of
-        Left _ -> getLocation l (TConst xs)
-        Right (T l' c) -> if l == l' then TConst [x]
-                          else getLocation l $ TConst xs
-      TLocat l' t -> if l == l' then t
-                     else error "Wrong Type"
-      ty@(_ :=> _) -> ty
-    
-    getType :: Term -> Context -> TType
-    getType t [] = error $ "Cannot Find type for term: " ++ show t
-                         ++ " in context. Have you defined it prior to calling it ?"
-    getType t ((t',ty):xs) = if t == t' then ty else getType t xs
-
-    mergeCtx :: Context -> Context -> Context
-    mergeCtx ox oy = makeSet ox oy
-      where
-        makeSet [] x  = x
-        makeSet (t@(term,ty):xs)  [] = t : makeSet xs oy 
-        makeSet t@((term,ty):xs) ((term',ty'):ys)
-          = if term /= term' then makeSet t ys
-            else if ty == ty' then makeSet xs oy
-                 else error $ "Type Conflict between: "
-                      ++ show term ++ ":" ++ show ty ++ " and "
-                      ++ show term' ++ ":" ++ show ty'
-    
-    derive4' :: [TType] -> Context -> Term -> Derivation
-    derive4' stream ctx term 
-      = case term of  
-          St -> Star (ctx ,St ,eT)
-
-          V x St -> Variable (ctx, term, ty)
-            where
-              ty =  getType term ctx
-
-          V x t  -> Fusion (ctx, term, ty) leftD rightD
-            where
-              ty = head stream
-              leftD = (derive4' nStreamL ctx (V x St))
-              rightD = (derive4' nStreamR ctx t)
-              nStream = tail stream
-              (nStreamL,nStreamR) = splitStream nStream
-              
-          B x typ lo St -> Abstraction (ctx', term, ty) nDeriv
-            where              
-              --ty = lType --Right <$> (TLocat lo t :=> TConst [])
-              ty = if lType == (Right <$> typ) then lType
-                   else error "Can't do the fusion it "
-
-              nStream = tail stream
-              nDeriv = derive4' nStream nctx (V x St)
-              nctx = (V x St, Right <$> typ) : ctx 
-              ctx' = (term,ty) : gCtx nDeriv
-              
-              lType :: TType
-              lType = (getLocation lo . getJType . getJudgement) nDeriv
-              
-          B x typ lo t' -> Fusion (ctx', term, ty) dLeft dRight                                   
-            where
-              dLeft = derive4' nStreamL ctx (B x typ lo St)
-              dRight = derive4' nStreamR  nctx t'
-
-              lType :: TType
-              lType = (getLocation lo . getJType . getJudgement) dLeft
-
-              nctx = (V x St, Right <$> typ) : ctx
-              ctx' = (term,ty) : mergeCtx (gCtx dLeft) (gCtx dRight)
-              ty = if (Right <$> typ) then lType
-                   else error "Can't do the fusion it "
-                
-              nStream = tail stream
-              (nStreamL, nStreamR) = splitStream nStream
-
-          P t lo St -> Application (ctx', term, ty) nDeriv
-            where
-              ty = TLocat lo (TConst [] :=> getType t ctx')
-              nDeriv = derive4' nStream ctx t
-              nStream = tail stream
-              ctx' = (term,ty) : gCtx nDeriv
-
-          P t lo t' -> Fusion (nctx, term, ty) dLeft dRight
-            where
-              dLeft = derive4' nStreamL ctx (P t lo St)
-              dRight = derive4' nStreamR ctx t'
-              ty = head stream
-              nStream = tail stream
-              (nStreamL, nStreamR) = splitStream nStream
-              nctx = (term,ty): mergeCtx (gCtx dLeft) (gCtx dRight)              
-
-ex04 = derive4 (parseFMC "*")
-ex14 = derive4 (parseFMC "x.y.*")
-ex24 = derive4 (parseFMC "<x:a>.*")
-ex34 = derive4 (parseFMC "<x:a>.x.*")
-ex34' = derive4 (parseFMC "[*].<x:a>.<y:b>.x.y.*")
-ex34'' = derive4 (parseFMC "[*].<x:a>.*")
-ex44 = derive4 (parseFMC "[x.*].*")
-ex54 = derive4 (parseFMC "[<x:a>.x.*].*")
-ex64 = derive4 (parseFMC "[<x:(=>a)>.x.*].<y:a>.*")
-ex74 = derive4 (parseFMC "[*].<x:(=>)>.*")
-ex84 = derive4 (parseFMC "[*].<x:(a=>)>.x.*")
--}
 {-
 x.y.z
              y.*     z.* 
@@ -680,7 +531,5 @@ x.y.z
 x.*     [*].[*].y.*
 -----------------------
 x.[*].[*].y.*
-
--}
 
 -}
