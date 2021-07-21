@@ -356,7 +356,6 @@ ex21  = derive1 (parseFMC "<x:a>.<x:a>.*")
 ex31  = derive1 (parseFMC "[x.*].*")
 ex41  = derive1 (parseFMC "x.[x.<x:a>.*].*")
 ex51  = derive1 (parseFMC "<x:a>.x.*")
--}
 
 type Subs = (TType,TType)
 {-
@@ -436,6 +435,7 @@ ex32' = derive2 (parseFMC "<x:a>.<y:a>.x.*")
 ex42 = derive2 (parseFMC "[x.*].*")
 ex52 = derive2 (parseFMC "[<x:a>.x.*].*")
 ex62 = derive2 (parseFMC "<x:a>.x.*")
+-}
 -}
 -- | Second step is to add our known variables to the context
 derive3 :: Term -> Derivation
@@ -531,6 +531,8 @@ ex63 = derive3 (parseFMC "[<x:(=>a)>.x.*].<y:a>.*")
 ex73 = derive3 (parseFMC "[*].*")
 ex83 = derive3 (parseFMC "[*].<x:(=>)>.*")
 
+
+{-
 -- | Second step is to add our known variables to the context
 derive4 :: Term -> Derivation
 derive4 = derive4' freshVarTypes [(St, Right <$> TConst [] :=> TConst[])]
@@ -652,7 +654,7 @@ ex54 = derive4 (parseFMC "[<x:a>.x.*].*")
 ex64 = derive4 (parseFMC "[<x:(=>a)>.x.*].<y:a>.*")
 ex74 = derive4 (parseFMC "[*].<x:(=>)>.*")
 ex84 = derive4 (parseFMC "[*].<x:(a=>)>.x.*")
-
+-}
 {-
 x.y.z
              y.*     z.* 
@@ -681,4 +683,3 @@ x.[*].[*].y.*
 
 -}
 
--}
