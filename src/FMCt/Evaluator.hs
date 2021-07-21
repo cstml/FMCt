@@ -1,15 +1,19 @@
+{-#LANGUAGE ScopedTypeVariables#-}
 module FMCt.Evaluator
   ( eval
   , eval1
+  , tryEval1
   , State
   , Binds
   , Memory
   , emptyMem
   ) where
 
+import Control.Exception (try, IOException, catch)
 import Data.Map (Map, (!?))
 import FMCt.Syntax (Tm(..), Lo(..), Vv, Type(..))
 import Text.Read (readMaybe)
+import qualified Control.Exception as E
 import qualified Data.Map as M
 
 -- | Memory is a Map between a location and a list of Terms.
@@ -102,6 +106,12 @@ eval t = foldl1 (flip (.)) (evaluate <$> t) emptyMem
 -- from an empty memory.
 eval1 :: Tm -> State
 eval1 t = evaluate t emptyMem
+
+-- | Evaluates a term and fails safely.
+tryEval1 :: Tm -> IO (Either IOException State)
+tryEval1 term = do
+  x :: Either IOException State <- try $ E.evaluate $ eval1 term
+  return x
 
 evalIO :: State -> IO ()
 evalIO st@(m,b) = case m !? Out of
