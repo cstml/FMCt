@@ -1,6 +1,7 @@
 module FMCt.Parsing
     ( parseFMC
     , parseType
+    , parseFMCtoString
     )
 where
 import Control.Monad (void)
@@ -13,6 +14,12 @@ parseFMC :: String -> Tm
 parseFMC x = case parse term "FMCParser" x of
   Right x -> x
   Left  e -> error $ show e
+
+parseFMCtoString :: String -> String
+parseFMCtoString x = case parse term "FMCParser" x of
+  Right x -> show x
+  Left  e -> show e
+
 
 parseType :: String -> T
 parseType x = case parse termType "TypeParser" x of
