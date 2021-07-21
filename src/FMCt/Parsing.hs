@@ -6,29 +6,35 @@ module FMCt.Parsing
 where
 import Control.Monad (void)
 
-import FMCt.Syntax (LTConstant(..), Tm(..), Lo(..), T(..), Type(..), TConstant)
+import FMCt.Syntax (Tm(..), Lo(..), T(..), Type(..))
 import Text.ParserCombinators.Parsec
 
-
+-- | Main Parsing Function.
 parseFMC :: String -> Tm
 parseFMC x = case parse term "FMCParser" x of
   Right x -> x
   Left  e -> error $ show e
 
+-- | Utility Parsing Function used for the FMCt-Web.
 parseFMCtoString :: String -> String
 parseFMCtoString x = case parse term "FMCParser" x of
   Right x -> show x
   Left  e -> show e
 
-
+-- | Type Parser.
 parseType :: String -> T
 parseType x = case parse termType "TypeParser" x of
   Right x -> x
   Left  e -> error $ show e
 
+-- | Term Parser.
 term :: Parser Tm
 term = choice [variable, application, abstraction, star]
 
+-- | Abstraction Parser.
+--
+-- Example:
+-- >> <x:a>
 abstraction :: Parser Tm
 abstraction = do
   l <- location
@@ -68,7 +74,9 @@ location =
          , string "" >> return La
          ]
 
--- | Type Constants are simple strings:
+type TConstant = String
+
+-- | Type Constant Parser. Type Constants are simple strings:
 --
 -- Examples :
 -- >> Int
@@ -76,24 +84,51 @@ location =
 typeConstant :: Parser TConstant
 typeConstant = many1 alpha <> many alphaNumeric
 
+
 -- | Home Constants are constants that are on the lambda row
 --
 -- Examples:
 -- >> Int <-> λ(Int)
-homeConstant :: Parser LTConstant
-homeConstant = T La <$> typeConstant 
+homeType :: Parser T
+homeType = do
+  typeC <- between (char '(') (char ')') termType
+  return $ TLoc La typeC
 
--- | Location Types are constants at a specific location
+-- | Constant Type
+--
+-- Example:
+-- >> Int
+-- >> a
+-- >> b
+constantType :: Parser T
+constantType = do
+  x <- typeConstant
+  return $ TCon x
+    
+-- | Location Types are Types at a specific location
 --
 -- Examples
 -- >> In(Int)
-locationConstant :: Parser LTConstant
-locationConstant = do
+-- >> In(Int=>Int)
+locationType :: Parser T
+locationType = do
   l <- location
-  t <- between (spaces >> char '(') (spaces >> char ')') typeConstant
-  return $ T l t
+  t <- between (spaces >> char '(') (spaces >> char ')') (constantType <|> termType <|> constantType)
+  return $ TLoc l t
 
--- | Empty type is empy
+-- | Vector Types are a list of types.
+--
+-- Examples
+-- >> a,b,c
+-- >> a b c
+vectorType :: Parser T
+vectorType = do
+  t <- between (spaces >> (char '('))
+               (spaces >> (char ')'))
+               (termType `sepBy1` (((char ' ') <* spaces) <|> (spaces *> char ',' <* spaces)))
+  return $ TVec t 
+
+-- | Empty type is empty
 --
 -- Examples:
 -- e => e
@@ -101,19 +136,13 @@ locationConstant = do
 emptyType :: Parser T
 emptyType = do
     void (char 'e') <|> spaces
-    return $ TConst []
-
-simpleType :: Parser T
-simpleType = 
-  do ts <- (homeConstant <|> locationConstant)  `sepBy1` (spaces >> char ',' >> spaces)
-     return $ TConst ts
-  <|> emptyType
+    return $ TCon ""
 
 nestedType :: Parser T
 nestedType = do
   l <- location
   ts <- between (spaces >> char '(' >> spaces) (spaces >> char ')' >> spaces) termType
-  return $ TLocat l ts
+  return $ TLoc l ts
 
 higherType :: Parser T
 higherType = do
@@ -121,8 +150,8 @@ higherType = do
   return $ foldr1 (:=>) ts
 
 termType :: Parser T
-termType = higherType <|> try nestedType <|> simpleType
-                  
+termType = try higherType <|> try vectorType <|> try locationType <|> try constantType <|> emptyType
+           
 --------------------------------------------------------------------------------
 -- Aux
 sepparator :: Parser ()
