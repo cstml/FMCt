@@ -2,18 +2,24 @@ module FMCt.Parsing
     ( parseFMC
     , parseType
     , parseFMCtoString
+    , parseFMC'
     )
 where
 import Control.Monad (void)
+import Control.Exception hiding (try)
 
 import FMCt.Syntax (Tm(..), Lo(..), T(..), Type(..))
 import Text.ParserCombinators.Parsec
 
--- | Main Parsing Function.
+-- | Main Parsing Function. (Unsafe)
 parseFMC :: String -> Tm
 parseFMC x = case parse term "FMCParser" x of
   Right x -> x
   Left  e -> error $ show e
+
+-- | Main Parsing Function. (Safe)
+parseFMC' :: String -> Either ParseError Tm
+parseFMC' x = parse term "FMCParser" x 
 
 -- | Utility Parsing Function used for the FMCt-Web.
 parseFMCtoString :: String -> String

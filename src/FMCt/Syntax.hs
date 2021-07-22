@@ -34,13 +34,14 @@ data Tm = V Vv Tm          -- ^ Variable
 
 infixr 9 :=>
 
-type T = Type String
+-- | Term Types
+type T = Type String            
 
 -- | Type data structure
-data Type a = TCon a           -- ^ Type Vector.
-            | TVar a
-            | TVec [Type a]
-            | TLoc Lo (Type a) -- ^ Location Parametrised Type.
+data Type a = TCon a             -- ^ Type Constant.
+            | TVar a             -- ^ Type Variable - (like haskell forall - WIP)
+            | TVec [Type a]      -- ^ Type Vector 
+            | TLoc Lo (Type a)   -- ^ Location Parametrised Type.
             | Type a :=> Type a  -- ^ A FMC Type.
             deriving (Eq, Ord)
 
