@@ -25,7 +25,8 @@ common common-specs
                         containers,
                         mtl,
                         parsec,
-                        text
+                        text,
+                        transformers
                         
   default-extensions:   OverloadedStrings,
                         LambdaCase

@@ -1,5 +1,5 @@
 { mkDerivation, base, containers, mtl, parsec, QuickCheck, stdenv
-, text
+, text, transformers
 }:
 mkDerivation {
   pname = "FMCt";
@@ -7,9 +7,11 @@ mkDerivation {
   src = ./.;
   isLibrary = true;
   isExecutable = true;
-  libraryHaskellDepends = [ base containers mtl parsec text ];
+  libraryHaskellDepends = [
+    base containers mtl parsec text transformers
+  ];
   executableHaskellDepends = [
-    base containers mtl parsec QuickCheck text
+    base containers mtl parsec QuickCheck text transformers
   ];
   license = stdenv.lib.licenses.bsd3;
 }

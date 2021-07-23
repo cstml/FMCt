@@ -4,6 +4,7 @@ module FMCt.TypeChecker
   )
 where
 
+import Control.Monad.Trans.State
 import FMCt.Syntax
 import Data.List (sort)
 import Data.Semigroup
@@ -505,6 +506,99 @@ ex53 = derive3 (parseFMC "[<x:a>.x.*].*")
 ex63 = derive3 (parseFMC "[<x:(=>a)>.x.*].<y:a>.*")
 ex73 = derive3 (parseFMC "[*].*")
 ex83 = derive3 (parseFMC "[*].<x:(=>)>.*")
+
+
+-- | Second step is to add our known variables to the context
+derive4 :: Term -> Derivation
+derive4 = derive4' freshVarTypes [(St, TCon [] :=> TCon [])]
+  where
+    eT :: T
+    eT = TCon []
+
+    -- | Get the context 
+    gCtx :: Derivation -> Context
+    gCtx = \case
+      Star (c,_,_) -> c
+      Variable (c,_,_) -> c
+      Abstraction (c,_,_) _ -> c
+      Application (c,_,_) _ -> c
+      Fusion (c,_,_) _ _ -> c
+    
+    getType :: Term -> Context -> T
+    getType t [] = error $ "Cannot Find type for term: " ++ show t
+                         ++ " in context. Have you defined it prior to calling it ?"
+    getType t ((t',ty):xs) = if t == t' then ty else getType t xs
+
+    mergeCtx :: Context -> Context -> Context
+    mergeCtx ox oy = makeSet ox oy
+      where
+        makeSet [] x  = x
+        makeSet (t@(term,ty):xs)  [] = t : makeSet xs oy 
+        makeSet t@((term,ty):xs) ((term',ty'):ys)
+          = if term /= term' then makeSet t ys
+            else if ty == ty' then makeSet xs oy
+                 else error $ "Type Conflict between: "
+                      ++ show term ++ ":" ++ show ty ++ " and "
+                      ++ show term' ++ ":" ++ show ty'
+    
+    getUpperType :: Derivation -> T
+    getUpperType = \case 
+      Star        (_,_,t)     -> t 
+      Variable    (_,_,t)     -> t 
+      Abstraction (_,_,t) _   -> t
+      Application (_,_,t) _   -> t
+      Fusion      (_,_,t) _ _ -> t
+
+    derive4' :: [T] -> Context -> Term -> Derivation
+    derive4' stream ctx term 
+      = case term of  
+          St -> Star (ctx, St, ty)
+            where
+              ty = getType term ctx
+
+          V x St -> Variable (ctx, term, ty)
+            where
+              ty = getType term ctx
+
+          V x t  -> Fusion (ctx, term, ty) leftD rightD
+            where
+              ty                  = head stream
+              leftD               = derive4' nStreamL ctx (V x St)
+              rightD              = derive4' nStreamR ctx t
+              nStream             = tail stream
+              (nStreamL,nStreamR) = splitStream nStream
+              
+          B x t lo St -> Abstraction (ctx', term, ty) nDeriv
+            where              
+              ty = TLoc lo t :=> TCon []
+              nStream = tail stream
+              nDeriv = derive4' nStream ctx' (V x St)
+              ctx' = (V x St, t) : ctx 
+              
+          B x t lo t' -> Fusion (ctx', term, ty) dLeft dRight
+            where
+              dLeft = derive4' nStreamL ctx (B x t lo St)
+              dRight = derive4' nStreamR ctx' t'
+              ctx' = (V x St, t) : ctx
+              ty = head stream
+              nStream = tail stream
+              (nStreamL, nStreamR) = splitStream nStream
+
+          P t lo St -> Application (ctx, term, ty) nDeriv
+            where
+              uty = getUpperType 
+              ty = TCon [] :=> TCon []
+              nDeriv = derive4' nStream ctx t
+              nStream = tail stream
+
+          P t lo t' -> Fusion (nctx, term, ty) dLeft dRight
+            where
+              dLeft = derive4' nStreamL ctx (P t lo St)
+              dRight = derive4' nStreamR ctx t'
+              ty = head stream
+              nStream = tail stream
+              (nStreamL, nStreamR) = splitStream nStream
+              nctx =  mergeCtx (gCtx dLeft) (gCtx dRight)              
 
 {-
 x.y.z
