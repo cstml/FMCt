@@ -50,10 +50,12 @@ executable FMCt
   
   main-is:              Main.hs
                         
-executable Test         
+test-suite Test         
   import:               common-specs
 
   main-is:              Main.hs
+
+  type:                 exitcode-stdio-1.0
 
   other-modules:        TestGenerators
 
@@ -62,7 +64,8 @@ executable Test
                         mtl,
                         parsec,
                         text,
-                        QuickCheck
+                        QuickCheck,
+                        Tasty
 
   hs-source-dirs:       test
 
