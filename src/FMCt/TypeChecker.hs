@@ -329,7 +329,7 @@ consumesN = \case
     TCon "" -> (,) x mempty
     TVec [] -> (,) x mempty
     y@(TLoc l' t') ->
-      -- ^ If the location are the same we need to check what happens with the
+      -- If the location are the same we need to check what happens with the
       -- interaction between the types.
       if l == l'
       then
@@ -346,10 +346,10 @@ consumesN = \case
         in
           (,) res left'
 
-        -- | Otherwise they don't interact 
+        -- Otherwise they don't interact 
       else (,) x y
 
-    -- | TLoc doesn't interact with any other type.
+    -- TLoc doesn't interact with any other type.
     y       -> (,) x y
 
   x@(tIn :=> tOut) ->

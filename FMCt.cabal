@@ -50,22 +50,25 @@ executable FMCt
   
   main-is:              Main.hs
                         
-test-suite Test         
-  import:               common-specs
+-- test-suite Test         
+-- --  import:               common-specs
+  
+--   hs-source-dirs:       test
 
-  main-is:              Main.hs
+--   main-is:              Main.hs
 
-  type:                 exitcode-stdio-1.0
+--   type:                 exitcode-stdio-1.0
 
-  other-modules:        TestGenerators
+--   other-modules:        TestGenerators
 
-  build-depends:        base,
-                        containers,
-                        mtl,
-                        parsec,
-                        text,
-                        QuickCheck,
-                        tasty
+--   build-depends:        base,
+--                         containers,
+--                         mtl,
+--                         parsec,
+--                         text,
+--                         QuickCheck,
+--                         tasty,
+--                         FMCt
 
-  hs-source-dirs:       test
+
 
