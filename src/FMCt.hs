@@ -1,8 +1,8 @@
+-- | Module is made just for Re-Exporting basic functions.
 module FMCt
-  (  module FMCt  )
+  (  module X  )
 where
--- Module is made just for Re-Exporting basic functions.
-import FMCt.Parsing     ( parseFMC, parseType, parseFMCtoString )
-import FMCt.Evaluator   ( eval )
-import FMCt.Examples    ( examplesList )
-import FMCt.TypeChecker ( typeCheck )
+import qualified FMCt.Parsing     as X ( parseFMC, parseType, parseFMCtoString )
+import qualified FMCt.Evaluator   as X ( eval ) 
+import qualified FMCt.Examples    as X ( examplesList )
+import qualified FMCt.TypeChecker as X ( typeCheck )

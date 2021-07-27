@@ -81,17 +81,15 @@ instance Show (Type String)  where
   show x = case x of
     TCon "" -> " "
     TCon y -> y
-    TVec x -> init $ mconcat $ (flip (++) ",") <$> show <$> x
+    TVec x -> mconcat ["(", init $ mconcat $ (flip (++) ",") <$> show <$> x , ")"]
     TLoc l y -> show l ++ "(" ++ show y ++ ")"
     t1 :=> t2 -> mconcat ["(", show t1, " => ", show t2, ")"]
-    --TVector x -> "(" ++ (mconcat $ (++ ", ") . show <$> x) ++ ")"
 
 instance Show Tm where
   show x = case x of
     B v t l t' -> show l ++ "<" ++ v ++ ":" ++ show t ++ ">" ++ "." ++ show t'
     P t l t' -> "[" ++ show t ++ "]" ++ show l ++ "." ++ show t'
     V v t -> v ++ "." ++ show t -- untyped version
---    V v tt t   -> v ++ ":" ++ show tt ++  "." ++ show t -- typed version
     St          -> "*"
 
 instance Functor Type where
