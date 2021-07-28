@@ -35,4 +35,4 @@ reformat:
 
 # Make the documentation
 haddock-generate:
-	haddock ./src-exe/*.hs -o ./doc -h && firefox ./doc/index.html
+	cabal haddock ./src/**/*.hs -o ./doc -h && firefox ./doc/index.html

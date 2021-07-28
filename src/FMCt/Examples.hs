@@ -10,7 +10,6 @@ examplesList = [term1]
   term1 :: String 
   term1 =  "1.2.3.γ<x:(=>^(Int))>.+.x.+"
 
-
 ex04   = derive $ parseFMC "*"
 ex14   = derive $ parseFMC "x.y.*"
 ex24   = derive $ parseFMC "<x:(=>a)>.*"
@@ -33,6 +32,7 @@ exFuse3 = (TCon "y" :=> TVec[TCon "x", TLoc Ho $ TCon ""]) `fuse` (TCon "x" :=> 
 
 --------------------------------------------------------------------------------
 -- consumes examples
+
 xc1 = consumes (TCon "x") (TCon "x")
 xc2 = consumes (TVec [ TCon "y", TCon "x", TCon "z" ]) (TCon "y")
 -- | One extra Received

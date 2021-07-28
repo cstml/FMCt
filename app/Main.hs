@@ -1,10 +1,5 @@
 module Main (main) where
-import FMCt.Syntax
-import FMCt.Parsing
-import FMCt.Pretty
-import FMCt.Evaluator
-import FMCt.Examples
-import FMCt.TypeChecker(typeCheck)
+import FMCt (parseFMC, eval1, printStack, printOutput)
 import Control.Monad(void, forM_)
 import Data.String (IsString(..))
 
@@ -36,4 +31,3 @@ shortcut unPterm = (return . parseFMC) unPterm >>=
                    \state -> (print . ("State: " ++) . show ) state >>
                    (putStrLn . printStack) state  >>
                    (putStrLn . printOutput) state
-

@@ -35,20 +35,37 @@ common common-specs
                         
   hs-source-dirs:       src
                         
-library                 
+library
   import:               common-specs
                         
-  exposed-modules:      FMCt,
-                        FMCt.Evaluator,
-                        FMCt.Syntax,
-                        FMCt.TypeChecker,
-                        FMCt.Parsing,
+  exposed-modules:      FMCt
+                        FMCt.Evaluator
+                        FMCt.Examples
+                        FMCt.Parsing
                         FMCt.Pretty
+                        FMCt.Syntax
+                        FMCt.TypeChecker
+
+                        
+  main:                 FMCt
+
+--  other-modules:        
                         
 executable FMCt         
   import:               common-specs
   
+  hs-source-dirs:       app
+  
   main-is:              Main.hs
+
+  other-modules:        FMCt
+                        FMCt.Evaluator
+                        FMCt.Examples
+                        FMCt.Parsing
+                        FMCt.Pretty
+                        FMCt.Syntax
+                        FMCt.TypeChecker
+                        FMCt.Examples
                         
 -- test-suite Test         
 -- --  import:               common-specs

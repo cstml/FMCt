@@ -3,7 +3,8 @@ module FMCt
   (  module X  )
 where
 
-import qualified FMCt.Parsing     as X ( parseFMC, parseType, parseFMCtoString )
-import qualified FMCt.Evaluator   as X ( eval ) 
-import qualified FMCt.Examples    as X ( examplesList )
-import qualified FMCt.TypeChecker as X ( typeCheck )
+import FMCt.Parsing     as X ( parseFMC, parseType, parseFMCtoString )
+import FMCt.Evaluator   as X ( eval, eval1 ) 
+import FMCt.Examples    as X ( examplesList )
+import FMCt.TypeChecker as X ( typeCheck )
+import FMCt.Pretty      as X ( printStack, printOutput)
