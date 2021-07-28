@@ -4,6 +4,9 @@ module FMCt.TypeChecker
   ( TError(..)
   , typeCheck
   , derive
+  , fuse
+  , consumes
+  , consume
   )
 where
 
@@ -22,6 +25,7 @@ data TError
   | ErrUndefT   String          -- ^ An undefined Type.
   | ErrMerge    String          -- ^ A merge Error.
   | ErrOverride String          -- ^ Attempting to override declared variable.
+  | ErrWrongT   String          -- ^ Attemptin to use the wrong types
   deriving Show
 
 instance Exception TError
@@ -93,7 +97,7 @@ fuseTypesD dL dR = ty
   where
     tL = (getJType . getJudgement) dL :: T 
     tR = (getJType . getJudgement) dR :: T 
-    ty = fuseN tL tR 
+    ty = fuse tL tR 
 
 newtype MT = MT T
 
@@ -196,104 +200,55 @@ derive = derive' freshVarTypes [(St, TCon [] :=> TCon [])]
               ty = fuseTypesD dLeft dRight
               nStream = tail stream
               (nStreamL, nStreamR) = splitStream nStream
-              nctx =  mergeCtx (gCtx dLeft) (gCtx dRight)              
-      
+              nctx =  mergeCtx (gCtx dLeft) (gCtx dRight)                  
 
-{-
--- Some Examples
---------------------------------------------------------------------------------
-x.y.z.*
-             y.*     z.* 
-~> x.*        y.z.*
+fuse :: T -> T -> T
+fuse = \case
+  x@(TCon "") -> normaliseT
 
---------------------------------------------------------------------------------
-    x.*
------------
-   <x:a>.*
---------------------------------------------------------------------------------
-    x.*
------------
-   [x.*].*        y.*
--------------------------
-  [x.*].y.*
---------------------------------------------------------------------------------
-                             
-                   -------    -------
-                    [*].*       y.*
-       --------    -------------------
-        [*].*            [*].y.*
----     -------------------------
-x.*       [*].[*].y.*
------------------------
-x.[*].[*].y.*
-
--}
-
-fuseN :: T -> T -> T
-fuseN = \case
-  x@(TCon "") -> id . normaliseT
-
-  x@(TVec []) -> id . normaliseT
+  x@(TVec []) -> normaliseT
   
   x@(TCon _)  -> \case
     y@(TCon "")      ->  x
     y@(TCon _)       -> TVec [x,y]
     y@(TVec [])      -> TVec [x]
-    yy@(TVec (y:ys)) -> fuseN (fuseN x y) (TVec ys)
+    yy@(TVec (y:ys)) -> fuse (fuse x y) (TVec ys)
     y@(TLoc l t)     -> TVec [x,y]
-    y@(t1 :=> t2)    -> either error (id . normaliseT) $ consumeN y (mempty :=> x)
+    y@(t1 :=> t2)    -> either (throw . ErrWrongT) normaliseT $ consume y (mempty :=> x)
     
   xxx@(TVec xx@(x:xs))  -> \case
     y@(TCon "")      -> xxx
     y@(TCon _)       -> TVec $ xx ++ [y]
     y@(TVec [])      -> xxx
-    yy@(TVec (y:ys)) -> fuseN (fuseN xxx y) (TVec ys)
+    yy@(TVec (y:ys)) -> fuse (fuse xxx y) (TVec ys)
     y@(TLoc l t)     -> TVec [x,y]
-    y@(t1 :=> t2)    -> either error (id . normaliseT) $ consumeN y (mempty :=> xxx)
+    y@(t1 :=> t2)    -> either (throw . ErrWrongT) normaliseT $ consume y (mempty :=> xxx)
     
   x@(TLoc l t) -> \case
     y@(TCon "")      -> x
     y@(TCon _)       -> TVec $ x : y : []
     y@(TVec [])      -> x
-    yy@(TVec (y:ys)) -> fuseN (fuseN x y) (TVec ys)
+    yy@(TVec (y:ys)) -> fuse (fuse x y) (TVec ys)
     y@(TLoc l' t')   -> if l == l'
-                        then TLoc l $ fuseN t t'
+                        then TLoc l $ fuse t t'
                         else TVec [x,y]
-    y@(t1 :=> t2)    -> either error (id . normaliseT) $ consumeN y (mempty :=> x)
+    y@(t1 :=> t2)    -> either (throw . ErrWrongT) normaliseT $ consume y (mempty :=> x)
 
   x@(t1 :=> t2)  -> \case
     y@(TCon "")      -> x
-    y@(TCon _)       -> fuseN (mempty :=> y) x
+    y@(TCon _)       -> fuse (mempty :=> y) x
     y@(TVec [])      -> x
-    yy@(TVec (y:ys)) -> fuseN (fuseN x y) (TVec ys)
-    y@(TLoc l' t')   -> fuseN (mempty :=> y) x
-    y@(t1' :=> t2')  -> either error (id . normaliseT) $ consumeN x y
+    yy@(TVec (y:ys)) -> fuse (fuse x y) (TVec ys)
+    y@(TLoc l' t')   -> fuse (mempty :=> y) x
+    y@(t1' :=> t2')  -> either (throw . ErrWrongT) normaliseT $ consume x y
 
-exFuse1 = (TCon "") `fuseN` (TCon "x")
-exFuse2 = (TCon "y" :=> TCon "x") `fuseN` (TCon "x" :=> TCon "y")
-exFuse3 = (TCon "y" :=> TVec[TCon "x", TLoc Ho $ TCon ""]) `fuseN` (TCon "x" :=> TCon "y")
-
--- | Normalise gets rid of empty Types at locations.
-normaliseT :: T -> T
-normaliseT x@(TCon _)         = x
-normaliseT x@(TVec [])        = mempty
-normaliseT (TLoc _ (TVec [])) = mempty
-normaliseT (TLoc _ (TCon "")) = mempty
-normaliseT (TVec (x:[]))      = normaliseT x
-normaliseT (t1 :=> t2)        = normaliseT t1 :=> normaliseT t2
-normaliseT (TVec x)           = normaliseT $ TVec $ fEmpty $ normaliseT <$> x
-  where fEmpty :: [T] -> [T]
-        fEmpty = filter (not . aux)
-        aux x = x == (mempty :: T) || x == TCon "" || x == TVec []
-normaliseT x = id x
-
-consumesN :: T
+consumes :: T
           -- ^ Requires - What the term will consume
           -> T
           -- ^ Receives - what the term is getting 
           -> (T,T)
           -- ^ (Left from Requires, Left from Receives)
-consumesN = \case
+consumes = \case
   TCon "" -> (,) mempty . id
 
   TVec [] -> (,) mempty . id
@@ -301,27 +256,27 @@ consumesN = \case
   xx@(TCon x)  -> \case
     TCon "" -> (,) xx mempty
     yy@(TCon y) -> if x == y then (,) mempty mempty
-                   else error $
-                        mconcat [ "cannot merge ", show xx , " " , show yy ]
-    TVec [] -> (,) xx mempty
-    TVec (y:ys) -> let
-        (res1, left1) = consumesN xx y
-        (res2, left2) = consumesN res1 (TVec ys)
-      in
-        (,) res2 (left1 <> left2)        
-    y -> (xx,y)
+                   else throw $ ErrMerge $
+                          mconcat [ "cannot merge ", show xx , " " , show yy ]
+    TVec []     -> (,) xx mempty
+    TVec (y:ys) ->
+      let
+        (res1, left1) = consumes xx y
+        (res2, left2) = consumes res1 (TVec ys)
+      in (,) res2 (left1 <> left2)        
+    yy          -> (xx,yy)
 
   xxx@(TVec xx@(x:xs)) -> \case
     TCon "" -> (,) xxx mempty
     TVec [] -> (,) xxx mempty
     yyy@(TVec yy@(y:ys)) -> let
-        (res1,left1) = consumesN xxx y
-        (res2,left2) = consumesN res1 (TVec ys)
+        (res1,left1) = consumes xxx y
+        (res2,left2) = consumes res1 (TVec ys)
       in
         (,) res2 (left1 <> left2)
     y -> let
-        (res1,left1) = consumesN x y
-        (res2,left2) = consumesN (TVec xs) left1
+        (res1,left1) = consumes x y
+        (res2,left2) = consumes (TVec xs) left1
       in
         (,) (res1 <> res2) (left2)
 
@@ -334,7 +289,7 @@ consumesN = \case
       if l == l'
       then
         let              
-          (res, left) = consumesN t t'
+          (res, left) = consumes t t'
                         
           res' = if res == mempty || res == TVec []
                  then mempty
@@ -357,42 +312,40 @@ consumesN = \case
       if x == y
       then (,) mempty mempty
       else (,) x y 
-      
-xc1 = consumesN (TCon "x") (TCon "x")
-xc2 = consumesN (TVec [ TCon "y", TCon "x", TCon "z" ]) (TCon "y")
--- | One extra Received
-xc3 = consumesN (TVec [ TCon "y", TCon "x", TCon "z" ])
-      (TVec [ TCon "y", TCon "x", TCon "z", TCon "p" ])
--- | One extra Required
-xc4 = consumesN
-      (TVec [ TCon "y", TCon "x", TCon "z", TCon "p" ])
-      (TVec [ TCon "y", TCon "x", TCon "z" ])
-xc5 = consumesN (TVec [ TCon "y" ]) (TVec [ TLoc Ho $ TCon "y" ])
 
--- | The inputs at the locations do interact.
-xc6 = consumesN (TVec [ TLoc Ho $ TCon "y" ]) (TVec [ TLoc Ho $ TCon "y" ])
+-- | Normalise gets rid of empty Types at locations.
+normaliseT :: T -> T
+normaliseT x@(TCon _)         = x
+normaliseT x@(TVec [])        = mempty
+normaliseT (TLoc _ (TVec [])) = mempty
+normaliseT (TLoc _ (TCon "")) = mempty
+normaliseT (TVec (x:[]))      = normaliseT x
+normaliseT (t1 :=> t2)        = normaliseT t1 :=> normaliseT t2
+normaliseT (TVec x)           = TVec $ fEmpty $ normaliseT <$> x
+  where
+    fEmpty :: [T] -> [T]
+    fEmpty = filter (not . aux)
+    aux x = x == (mempty :: T) || x == TCon "" || x == TVec []
+normaliseT x                  = id x -- Just to be sure it gets through.
 
--- | The inputs at the locations do interact but leave some behind.
-xc7 = consumesN (TVec [ TCon "x", TLoc Ho $ TCon "y" ]) (TVec [ TLoc Ho $ TCon "y" ])
-
--- | This should saturate, even though the inputs are reversed
-xc8 = consumesN (TVec [ TCon "x", TLoc Ho $ TCon "y" ]) (TVec [ TLoc Ho $ TCon "y", TCon "x" ])
-
-      
-consumeN :: T -> T -> Either String T
-consumeN t1@(tIn :=> tOut) t2@(tIn' :=> tOut') = result  
+-- | Consume                                 
+consume :: T -> T -> Either String T
+consume t1@(tIn :=> tOut) t2@(tIn' :=> tOut') = result  
   where
    intermediary :: (T,T)
-   intermediary = tIn' `consumesN` tOut
+   intermediary = tIn' `consumes` tOut
 
    result :: Either String T
    result = case intermediary of
      (TCon "", TCon "") -> Right $ tIn :=> tOut'
      (TCon "", TVec []) -> Right $ tIn :=> tOut'
-     (TCon "", x)       -> Right $ (tIn <> x) :=> tOut'
+     (TCon "", x)       -> Right $ tIn :=> (x <> tOut')
      (TVec [], TCon "") -> Right $ tIn :=> tOut'
      (TVec [], TVec []) -> Right $ tIn :=> tOut'
-     (TVec [], x)       -> Right $ (tIn <> x) :=> tOut'
+     (TVec [], x)       -> Right $ tIn :=> (x <> tOut')
+     
+     (x       ,TVec []) -> Right $ (tIn<>x) :=> tOut'
+     (x       ,TCon "") -> Right $ (tIn<>x) :=> tOut'
      _ -> Left $ mconcat $
             [ "error could not merge "
             , show t1
@@ -401,16 +354,6 @@ consumeN t1@(tIn :=> tOut) t2@(tIn' :=> tOut') = result
             , ". Resulting Type: "
             , show intermediary
             ]
-
-exCons :: Either String T
--- | Simple fusion example.
-exCons = (TCon "a" :=> TCon "b") `consumeN` (TCon "b" :=> TCon "c")
--- | This Time wrapped in a vector.
-exCons' = (TCon "a" :=> TVec[TCon "b"]) `consumeN` (TCon "b" :=> TCon "c")
--- | Wrapped in two vectors.
-exCons'' = (TCon "a" :=> TVec[TVec[TCon "b"]]) `consumeN` (TCon "b" :=> TCon "c")
-exCons2 = (TCon "a" :=> TCon "b") `consumeN` (TCon "" :=> TCon "c")
-
 
 -- Show Instance
 type DisplayLine = (( Int, Int, Int), [String])
