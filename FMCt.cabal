@@ -1,6 +1,6 @@
 cabal-version:          2.4                      
 name:                   FMCt                      
-version:                0.1.0.0                      
+version:                0.2.0.0                      
 license:                BSD-3-Clause                      
 license-file:           LICENSE                      
 author:                 Vlad Posmangiu Luchian                     
@@ -26,7 +26,8 @@ common common-specs
                         mtl,
                         parsec,
                         text,
-                        transformers
+                        transformers,
+                        deepseq
                         
   default-extensions:   OverloadedStrings,
                         LambdaCase
@@ -45,11 +46,6 @@ library
                         FMCt.Pretty
                         FMCt.Syntax
                         FMCt.TypeChecker
-
-                        
-  main:                 FMCt
-
---  other-modules:        
                         
 executable FMCt         
   import:               common-specs

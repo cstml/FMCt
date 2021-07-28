@@ -1,6 +1,9 @@
 packages: ./.
   
-documentation:       True
-haddock-html:        True
-haddock-executables: True
-profiling: True                
+documentation:        True                    
+  
+haddock-html:         True
+                     
+haddock-executables:  True
+                     
+profiling:            True                

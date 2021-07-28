@@ -35,4 +35,5 @@ reformat:
 
 # Make the documentation
 haddock-generate:
-	cabal haddock ./src/**/*.hs -o ./doc -h && firefox ./doc/index.html
+	cabal new-haddock && \
+  firefox ./dist-newstyle/build/x86_64-linux/ghc-8.6.5/FMCt-0.1.0.0/doc/html/FMCt/index.html

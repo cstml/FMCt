@@ -2,6 +2,9 @@
 module FMCt.Evaluator
   ( eval
   , eval1
+  , tCheck'
+  , eval1'
+  , evalToString
   , tryEval1
   , State
   , Binds
@@ -9,12 +12,15 @@ module FMCt.Evaluator
   , emptyMem
   ) where
 
+import Control.DeepSeq
 import Control.Exception (try, IOException, catch)
 import Data.Map (Map, (!?))
 import FMCt.Syntax (Tm(..), Lo(..), Vv, Type(..))
 import Text.Read (readMaybe)
+import FMCt.TypeChecker (typeCheck, Derivation, TError)
 import qualified Control.Exception as E
 import qualified Data.Map as M
+import Control.Monad (void)
 
 -- | Memory is a Map between a location and a list of Terms.
 type Memory = Map Lo [Tm]
@@ -106,6 +112,33 @@ eval t = foldl1 (flip (.)) (evaluate <$> t) emptyMem
 -- from an empty memory.
 eval1 :: Tm -> State
 eval1 t = evaluate t emptyMem
+
+-- | Takes 1 term, typechecks and type checks it. 
+tCheck' :: Tm
+        -- ^ Term to be TypeChecked
+        -> IO (Either TError Tm)
+        -- ^ IO Monad returning the result of the typecheck and the error or 
+tCheck' term = try $ do
+  res <- E.evaluate $ show $ typeCheck term
+  pure term
+
+-- | Evaluate with the typechecker and fail safely.
+eval1' :: Tm
+       -- ^ Term to be evaluated.
+       -> IO State
+       -- ^ Returns an empty state if the term cannot be typed checked.
+eval1' term = do
+  tc <- tCheck' term
+  case tc of
+    Left  e -> putStrLn "Caugh Error: " >> print  e >> pure emptyMem
+    Right _ -> pure $ eval1 term
+
+evalToString :: Tm -> IO String
+evalToString  term = do
+  tc <- tCheck' term
+  case tc of
+    Left e -> pure $ show e
+    Right x -> pure . show $ eval1 term
 
 -- | Evaluates a term and fails safely.
 tryEval1 :: Tm -> IO (Either IOException State)

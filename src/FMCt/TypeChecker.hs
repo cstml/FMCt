@@ -7,9 +7,11 @@ module FMCt.TypeChecker
   , fuse
   , consumes
   , consume
+  , Derivation
   )
 where
 
+import Control.DeepSeq
 import FMCt.Syntax
 import Data.List (sort)
 import qualified Data.Map as M
@@ -19,7 +21,7 @@ import Data.Monoid
 import Control.Monad.State
 import Control.Exception
 
--- | TypeChecking Errors.
+-- | Typechecking Errors.
 data TError
   = ErrSimple   String          -- ^ A Simple Error.
   | ErrUndefT   String          -- ^ An undefined Type.

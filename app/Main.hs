@@ -1,3 +1,6 @@
+{-
+
+-}
 module Main (main) where
 import FMCt (parseFMC, eval1, printStack, printOutput)
 import Control.Monad(void, forM_)
