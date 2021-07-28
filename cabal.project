@@ -5,5 +5,6 @@ documentation:        True
 haddock-html:         True
                      
 haddock-executables:  True
-                     
-profiling:            True                
+
+-- Making github actions fail. TODO: Fix.                                       
+--profiling:            True                
