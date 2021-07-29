@@ -39,14 +39,28 @@ type T = Type String
 
 -- | Type data structure
 data Type a = TCon a             -- ^ Type Constant.
-            | TVar a             -- ^ Type Variable - (like haskell forall - WIP)
+--            | TVar a             -- ^ Type Variable - (like haskell forall - WIP)
             | TVec [Type a]      -- ^ Type Vector 
             | TLoc Lo (Type a)   -- ^ Location Parametrised Type.
             | Type a :=> Type a  -- ^ A FMC Type.
             deriving (Eq, Ord)
 
--- | TypedTerms
-type TTm = (Tm, T)
+
+instance Semigroup T where
+  TVec []       <> x              = x
+  x             <> TVec[]         = x
+  TCon ""       <> x              = x
+  x             <> TCon ""        = x
+  xx@(TCon _)   <> yy@(TCon _)    = TVec [xx,yy]
+  TVec x        <> TVec y         = TVec $ x ++ y
+  xx@(TLoc l x) <> yy@(TLoc l' y) | l == l' = TLoc l $ x <> y
+                                  | otherwise = TVec [xx,yy]
+  xx <> yy                        = TVec [xx,yy]
+
+instance Monoid T where
+  mempty = TCon ""
+
+
 
 --------------------------------------------
 -- Location = {out, in, rnd, nd, x, γ, λ} --
@@ -60,9 +74,9 @@ data Lo = Out              -- ^ User Output Location - can only be pushed to.
         | Ho               -- ^ Home stack : γ ∈ A.
         | La               -- ^ Default push Location: λ ∈ A.
         | Lo  String       -- ^ any other location: x ∈ A.
-        | InInt            -- ^ User Input Location for Ints
-        | InBool           -- ^ User Input Location for Bools
-        | InChar           -- ^ User Input Location for Chars
+--        | InInt            -- ^ User Input Location for Ints
+--        | InBool           -- ^ User Input Location for Bools
+--        | InChar           -- ^ User Input Location for Chars
         deriving (Eq, Ord)
   
 --------------------------------------------------------------------------------
@@ -81,7 +95,7 @@ instance Show (Type String)  where
   show x = case x of
     TCon "" -> " "
     TCon y -> y
-    TVec x -> mconcat ["(", init $ mconcat $ (flip (++) ",") <$> show <$> x , ")"]
+    TVec _x -> mconcat ["(", init $ mconcat $ (flip (++) ",") <$> show <$> _x , ")"]
     TLoc l y -> show l ++ "(" ++ show y ++ ")"
     t1 :=> t2 -> mconcat ["(", show t1, " => ", show t2, ")"]
 
@@ -92,11 +106,3 @@ instance Show Tm where
     V v t -> v ++ "." ++ show t -- untyped version
     St          -> "*"
 
-instance Functor Type where
-  fmap f term
-    = case term of
-        TCon x   -> TCon $ f x
-        TVar x   -> TVar $ f x
-        TLoc l x -> TLoc l $ f <$> x
-        a :=> b  -> (f <$> a) :=> (f <$> b)
-                  

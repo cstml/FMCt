@@ -11,14 +11,7 @@ module FMCt.TypeChecker
   )
 where
 
-import Control.DeepSeq
 import FMCt.Syntax
-import Data.List (sort)
-import qualified Data.Map as M
-import FMCt.Parsing (parseType, parseFMC)
-import Text.Read (readMaybe)
-import Data.Monoid
-import Control.Monad.State
 import Control.Exception
 
 -- | Typechecking Errors.
@@ -36,29 +29,13 @@ type Context = [(Term, T)]
 type Judgement = (Context, Term, T)
 
 data Derivation
-  = Star        Judgement
-  | Variable    Judgement
-  | Abstraction Judgement Derivation
-  | Application Judgement Derivation
-  | Fusion      Judgement Derivation Derivation
+  = Star        !Judgement
+  | Variable    !Judgement
+  | Abstraction !Judgement !Derivation
+  | Application !Judgement !Derivation
+  | Fusion      !Judgement !Derivation !Derivation
 
 type Term = Tm
-type TypedTerm = (Term, T)
-type TVariable = String
-
-instance Semigroup T where
-  TVec []       <> x              = x
-  x             <> TVec[]         = x
-  TCon ""       <> x              = x
-  x             <> TCon ""        = x
-  xx@(TCon x)   <> yy@(TCon y)    = TVec [xx,yy]
-  TVec x        <> TVec y         = TVec $ x ++ y
-  xx@(TLoc l x) <> yy@(TLoc l' y) | l == l' = TLoc l $ x <> y
-                                  | otherwise = TVec [xx,yy]
-  xx <> yy                        = TVec [xx,yy]
-
-instance Monoid T where
-  mempty = TCon ""
 
 --------------------------------------------------------------------------------
 -- TypeCheck Function
@@ -68,6 +45,7 @@ typeCheck = derive
 
 --------------------------------------------------------------------------------
 -- Aux Functions
+getJudgement :: Derivation -> Judgement
 getJudgement = \case
   Star j -> j
   Variable j -> j
@@ -77,7 +55,7 @@ getJudgement = \case
 
 freshTypeVar :: [T]
 freshTypeVar = TCon <$> [ mconcat $ [[x],[z],show y]
-                        | y <- [1..]
+                        | y <- [1..] :: [Integer]
                         , x <- ['A'..'Z']
                         , z <- ['A'..'Z']
                         ]
@@ -88,8 +66,8 @@ freshVarTypes =  TVec . (:[]) <$> freshTypeVar
 splitStream :: [a] -> ([a],[a])
 splitStream x = (,) l r
   where
-    l = snd <$> (filter ( odd . fst ) $ zip [1..] x)
-    r = snd <$> (filter ( not . odd . fst ) $ zip [1..] x)              
+    l = snd <$> (filter ( odd . fst ) $ zip ([1..] :: [Integer]) x)
+    r = snd <$> (filter ( not . odd . fst ) $ zip ([1..] :: [Integer]) x)              
 
 --------------------------------------------------------------------------------
 --
@@ -101,12 +79,7 @@ fuseTypesD dL dR = ty
     tR = (getJType . getJudgement) dR :: T 
     ty = fuse tL tR 
 
-newtype MT = MT T
-
-toMT :: T -> MT
-toMT x@(t1 :=> t2) = MT x
-toMT _             = error "Not Machine Type"
-                                                                           
+getJType :: Judgement -> T
 getJType (_,_,x) = x
 
 -- | Second step is to add our known variables to the context
@@ -136,7 +109,7 @@ derive = derive' freshVarTypes [(St, TCon [] :=> TCon [])]
     mergeCtx ox oy = makeSet ox oy
       where
         makeSet [] x  = x
-        makeSet (t@(term,ty):xs)  [] = t : makeSet xs oy 
+        makeSet (t:xs) [] = t : makeSet xs oy 
         makeSet t@((term,ty):xs) ((term',ty'):ys)
           = if term /= term' then makeSet t ys
             else if ty == ty' then makeSet xs oy
@@ -160,7 +133,7 @@ derive = derive' freshVarTypes [(St, TCon [] :=> TCon [])]
             where
               ty = getType term ctx
 
-          V x St -> Variable (ctx, term, ty)
+          V _ St -> Variable (ctx, term, ty)
             where
               ty = getType term ctx
 
@@ -206,43 +179,43 @@ derive = derive' freshVarTypes [(St, TCon [] :=> TCon [])]
 
 fuse :: T -> T -> T
 fuse = \case
-  x@(TCon "") -> normaliseT
+  TCon "" -> normaliseT
 
-  x@(TVec []) -> normaliseT
+  TVec [] -> normaliseT
   
   x@(TCon _)  -> \case
-    y@(TCon "")      ->  x
+    TCon ""          ->  x
     y@(TCon _)       -> TVec [x,y]
-    y@(TVec [])      -> TVec [x]
-    yy@(TVec (y:ys)) -> fuse (fuse x y) (TVec ys)
-    y@(TLoc l t)     -> TVec [x,y]
-    y@(t1 :=> t2)    -> either (throw . ErrWrongT) normaliseT $ consume y (mempty :=> x)
+    TVec []          -> TVec [x]
+    TVec (y:ys)      -> fuse (fuse x y) (TVec ys)
+    y@(TLoc _ _)     -> TVec [x,y]
+    y@(_ :=> _)    -> either (throw . ErrWrongT) normaliseT $ consume y (mempty :=> x)
     
-  xxx@(TVec xx@(x:xs))  -> \case
-    y@(TCon "")      -> xxx
+  xxx@(TVec xx@(x:_))  -> \case
+    TCon ""          -> xxx
     y@(TCon _)       -> TVec $ xx ++ [y]
-    y@(TVec [])      -> xxx
-    yy@(TVec (y:ys)) -> fuse (fuse xxx y) (TVec ys)
-    y@(TLoc l t)     -> TVec [x,y]
-    y@(t1 :=> t2)    -> either (throw . ErrWrongT) normaliseT $ consume y (mempty :=> xxx)
+    TVec []          -> xxx
+    TVec (y:ys)      -> fuse (fuse xxx y) (TVec ys)
+    y@(TLoc _ _)     -> TVec [x,y]
+    y@(_ :=> _)      -> either (throw . ErrWrongT) normaliseT $ consume y (mempty :=> xxx)
     
   x@(TLoc l t) -> \case
-    y@(TCon "")      -> x
+    TCon ""          -> x
     y@(TCon _)       -> TVec $ x : y : []
-    y@(TVec [])      -> x
-    yy@(TVec (y:ys)) -> fuse (fuse x y) (TVec ys)
+    TVec []          -> x
+    TVec (y:ys)      -> fuse (fuse x y) (TVec ys)
     y@(TLoc l' t')   -> if l == l'
                         then TLoc l $ fuse t t'
                         else TVec [x,y]
-    y@(t1 :=> t2)    -> either (throw . ErrWrongT) normaliseT $ consume y (mempty :=> x)
+    y@(_ :=> _)    -> either (throw . ErrWrongT) normaliseT $ consume y (mempty :=> x)
 
-  x@(t1 :=> t2)  -> \case
-    y@(TCon "")      -> x
+  x@(_ :=> _)  -> \case
+    TCon ""          -> x
     y@(TCon _)       -> fuse (mempty :=> y) x
-    y@(TVec [])      -> x
-    yy@(TVec (y:ys)) -> fuse (fuse x y) (TVec ys)
-    y@(TLoc l' t')   -> fuse (mempty :=> y) x
-    y@(t1' :=> t2')  -> either (throw . ErrWrongT) normaliseT $ consume x y
+    TVec []          -> x
+    TVec (y:ys)      -> fuse (fuse x y) (TVec ys)
+    y@(TLoc _ _)     -> fuse (mempty :=> y) x
+    y@(_ :=> _)      -> either (throw . ErrWrongT) normaliseT $ consume x y
 
 consumes :: T
           -- ^ Requires - What the term will consume
@@ -268,10 +241,11 @@ consumes = \case
       in (,) res2 (left1 <> left2)        
     yy          -> (xx,yy)
 
-  xxx@(TVec xx@(x:xs)) -> \case
-    TCon "" -> (,) xxx mempty
-    TVec [] -> (,) xxx mempty
-    yyy@(TVec yy@(y:ys)) -> let
+  xxx@(TVec (x:xs)) -> \case
+    TCon ""     -> (,) xxx mempty
+    TVec []     -> (,) xxx mempty
+    TVec (y:ys) ->
+      let
         (res1,left1) = consumes xxx y
         (res2,left2) = consumes res1 (TVec ys)
       in
@@ -291,11 +265,7 @@ consumes = \case
       if l == l'
       then
         let              
-          (res, left) = consumes t t'
-                        
-          res' = if res == mempty || res == TVec []
-                 then mempty
-                 else TLoc l res
+          (res, left) = consumes t t'                       
                      
           left' = if left == mempty || left == TVec []
                   then mempty
@@ -309,7 +279,7 @@ consumes = \case
     -- TLoc doesn't interact with any other type.
     y       -> (,) x y
 
-  x@(tIn :=> tOut) ->
+  x@(_ :=> _) ->
     \y ->
       if x == y
       then (,) mempty mempty
@@ -317,18 +287,16 @@ consumes = \case
 
 -- | Normalise gets rid of empty Types at locations.
 normaliseT :: T -> T
-normaliseT x@(TCon _)         = x
-normaliseT x@(TVec [])        = mempty
-normaliseT (TLoc _ (TVec [])) = mempty
-normaliseT (TLoc _ (TCon "")) = mempty
-normaliseT (TVec (x:[]))      = normaliseT x
-normaliseT (t1 :=> t2)        = normaliseT t1 :=> normaliseT t2
-normaliseT (TVec x)           = TVec $ fEmpty $ normaliseT <$> x
-  where
-    fEmpty :: [T] -> [T]
-    fEmpty = filter (not . aux)
-    aux x = x == (mempty :: T) || x == TCon "" || x == TVec []
-normaliseT x                  = id x -- Just to be sure it gets through.
+normaliseT = \case
+  x@(TCon _)        -> x
+  TVec []           -> mempty
+  TLoc _ (TVec [])  -> mempty
+  TLoc _ (TCon "")  -> mempty
+  TVec (x:[])       -> normaliseT x
+  t1 :=> t2         -> normaliseT t1 :=> normaliseT t2
+  TVec x            -> TVec $ fEmpty $ normaliseT <$> x
+    where fEmpty = filter (not . aux); aux y = y == TCon "" || y == TVec []
+  x -> id x -- Just to be sure it gets through.
 
 -- | Consume                                 
 consume :: T -> T -> Either String T
@@ -356,10 +324,9 @@ consume t1@(tIn :=> tOut) t2@(tIn' :=> tOut') = result
             , ". Resulting Type: "
             , show intermediary
             ]
+consume _ _ = (throw . ErrWrongT) $ "Cannot consume types which are not of the form (* => *)"
 
 -- Show Instance
-type DisplayLine = (( Int, Int, Int), [String])
-
 instance Show Derivation where
   show d = unlines (reverse strs)
     where      
@@ -381,65 +348,30 @@ instance Show Derivation where
       showD :: Derivation -> (Int,Int,Int,[String])
       showD (Star j) = (0,k,0,[s,showL 0 k 0]) where s = showJ j; k = length s
       showD (Variable j) = (0,k,0,[s,showL 0 k 0]) where s = showJ j; k = length s
-      showD (Abstraction j d) = addrule (showJ j) (showD d)
-      showD (Application j d) = addrule (showJ j) (showD d)
-      showD (Fusion j d e) = addrule (showJ j) (sidebyside (showD d) (showD e))
+      showD (Abstraction j d') = addrule (showJ j) (showD d')
+      showD (Application j d') = addrule (showJ j) (showD d')
+      showD (Fusion j d' e) = addrule (showJ j) (sidebyside (showD d') (showD e))
 
       addrule :: String -> (Int,Int,Int,[String]) -> (Int,Int,Int,[String])
       addrule x (l,m,r,xs)
-        | k <= m     = (ll,k,rr, (replicate ll ' ' ++ x ++ replicate rr ' ')
-                                 : showL  l m r
-                                 : xs)
+        | k <= m
+        = (ll,k,rr, (replicate ll ' ' ++ x ++ replicate rr ' ') : showL  l m r : xs)
 
         | k <= l+m+r
-        = ( ll
-          , k
-          , rr
-          , (replicate ll ' ' ++ x ++ replicate rr ' ')
-            : showL ll k rr
-            : xs
-          )
+        = ( ll , k , rr , (replicate ll ' ' ++ x ++ replicate rr ' ') : showL ll k rr : xs )
 
         | otherwise
-        = ( 0
-          , k
-          , 0
-          , x
-            : replicate k '-'
-            : [ replicate (-ll) ' '
-                ++ y
-                ++ replicate (-rr) ' '
-              | y <- xs
-              ]
-          )
-        where
-          k = length x
-          i = div (m - k) 2
-          ll = l+i
-          rr = r+m-k-i
+        = ( 0 , k , 0 , x : replicate k '-' : [ replicate (-ll) ' ' ++ y ++ replicate (-rr) ' ' | y <- xs ] )
+        where k = length x; i = div (m - k) 2; ll = l+i; rr = r+m-k-i
 
       extend :: Int -> [String] -> [String]
-      extend i strs = strs ++ repeat (replicate i ' ')
+      extend i strs' = strs' ++ repeat (replicate i ' ')
 
-      sidebyside
-        :: (Int,Int,Int,[String])
-        -> (Int,Int,Int,[String])
-        -> (Int,Int,Int,[String])
+      sidebyside :: (Int,Int,Int,[String]) -> (Int,Int,Int,[String]) -> (Int,Int,Int,[String])
         
       sidebyside (l1,m1,r1,d1) (l2,m2,r2,d2)
         | length d1 > length d2
-        = ( l1
-          , m1+r1+2+l2+m2
-          , r2
-          , [ x ++ "  " ++ y
-            | (x,y) <- zip d1 (extend (l2+m2+r2) d2)
-            ]
-          )
+        = ( l1, m1+r1+2+l2+m2, r2, [ x ++ "  " ++ y | (x,y) <- zip d1 (extend (l2+m2+r2) d2)])
+        
         | otherwise
-        = ( l1
-          , m1+r1+2+l2+m2
-          , r2
-          , [ x ++ "  " ++ y
-            | (x,y) <- zip (extend (l1+m1+r1) d1) d2
-            ]
-          )
+        = ( l1 , m1+r1+2+l2+m2 , r2 , [ x ++ " " ++ y | (x,y) <- zip (extend (l1+m1+r1) d1) d2])

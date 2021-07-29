@@ -3,19 +3,23 @@ module FMCt.Parsing
     , parseType
     , parseFMCtoString
     , parseFMC'
+    , PError(..)
     )
 where
 import Control.Monad (void)
-import Control.Exception hiding (try)
-
-import FMCt.Syntax (Tm(..), Lo(..), T(..), Type(..))
+import qualified Control.Exception as E
+import Control.Exception (Exception)
+import FMCt.Syntax (Tm(..), Lo(..), T, Type(..))
 import Text.ParserCombinators.Parsec
+
+data PError = PTermErr String
+            | PTypeErr String
+            deriving Show
+instance Exception PError
 
 -- | Main Parsing Function. (Unsafe)
 parseFMC :: String -> Tm
-parseFMC x = case parse term "FMCParser" x of
-  Right x -> x
-  Left  e -> error $ show e
+parseFMC x = either (E.throw . PTermErr . show) id $ parse term "FMCParser" x 
 
 -- | Main Parsing Function. (Safe)
 parseFMC' :: String -> Either ParseError Tm
@@ -23,15 +27,12 @@ parseFMC' x = parse term "FMCParser" x
 
 -- | Utility Parsing Function used for the FMCt-Web.
 parseFMCtoString :: String -> String
-parseFMCtoString x = case parse term "FMCParser" x of
-  Right x -> show x
-  Left  e -> show e
+parseFMCtoString x = either show show $ parse term "FMCParser" x 
 
 -- | Type Parser.
 parseType :: String -> T
-parseType x = case parse termType "TypeParser" x of
-  Right x -> x
-  Left  e -> error $ show e
+parseType x = either (E.throw . PTypeErr . show)  id $  parse termType "TypeParser" x 
+
 
 -- | Term Parser.
 term :: Parser Tm
@@ -90,7 +91,7 @@ type TConstant = String
 typeConstant :: Parser TConstant
 typeConstant = many1 alpha <> many alphaNumeric
 
-
+{-
 -- | Home Constants are constants that are on the lambda row
 --
 -- Examples:
@@ -99,7 +100,7 @@ homeType :: Parser T
 homeType = do
   typeC <- between (char '(') (char ')') termType
   return $ TLoc La typeC
-
+-}
 -- | Constant Type
 --
 -- Example:
@@ -144,11 +145,11 @@ emptyType = do
     void (char 'e') <|> spaces
     return $ TCon ""
 
-nestedType :: Parser T
-nestedType = do
-  l <- location
-  ts <- between (spaces >> char '(' >> spaces) (spaces >> char ')' >> spaces) termType
-  return $ TLoc l ts
+-- nestedType :: Parser T
+-- nestedType = do
+--   l <- location
+--   ts <- between (spaces >> char '(' >> spaces) (spaces >> char ')' >> spaces) termType
+--   return $ TLoc l ts
 
 higherType :: Parser T
 higherType = do
@@ -175,9 +176,3 @@ alphaNumeric = alpha <|> numeric
 operators :: Parser Char
 operators = oneOf "+-/%=!?"
 
--- parse example
-ex1 = parseTest term "x . y . [*]. [*] . <x:((int,bool))>"
-ex2 = parseTest term "x . y . [*]. [*] . <x:_>"
-ex3 = parseTest term "x . y . [*]. [*] . <x:(a(int,bool) => (int))>"
-ex4 = parseTest term "x . y . [*]. [*] . <x:(a(a) => (a) => (b))>"  -- higher order type 
-ex5 = parseTest term "x . y . [*]. [*] . <x:(a(ab,b) => (int)), (b(int))>"

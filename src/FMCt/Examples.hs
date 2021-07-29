@@ -1,10 +1,16 @@
+{-# OPTIONS_GHC -Wno-unused-top-binds -Wno-missing-signatures#-}
 module FMCt.Examples
-  (examplesList)
+  ( examplesList
+  , pEx
+  , runPEx
+  )
 where
 import FMCt.Parsing (parseFMC) 
 import FMCt.TypeChecker (derive, fuse, consumes, consume)
-import FMCt.Syntax (T, Type(..), Lo(..))
+import FMCt.Syntax (T, Type(..), Lo(..), Tm(..))
+import FMCt.Evaluator
 
+examplesList :: [String]
 examplesList = [term1]
   where
   term1 :: String 
@@ -61,3 +67,35 @@ exCons' = (TCon "a" :=> TVec[TCon "b"]) `consume` (TCon "b" :=> TCon "c")
 -- | Wrapped in two vectors.
 exCons'' = (TCon "a" :=> TVec[TVec[TCon "b"]]) `consume` (TCon "b" :=> TCon "c")
 exCons2 = (TCon "a" :=> TCon "b") `consume` (TCon "" :=> TCon "c")
+
+--------------------------------------------------------------------------------
+-- parse example
+runPEx = parseFMC <$> pEx
+pEx = [pEx1, pEx2, pEx3, pEx4, pEx5]
+  where
+    pEx1 =  "x . y . [*]. [*] . <x:((int,bool))>"
+    pEx2 =  "x . y . [*]. [*] . <x:_>"
+    pEx3 =  "x . y . [*]. [*] . <x:(a(int,bool) => (int))>"
+    pEx4 =  "x . y . [*]. [*] . <x:(a(a) => (a) => (b))>"  -- higher order type 
+    pEx5 =  "x . y . [*]. [*] . <x:(a(ab,b) => (int)), (b(int))>"
+
+
+
+--------------------------------------------------------------------------------
+-- Some simple Evaluator examples
+ex7 = eval1 $                  -- [1.2.*].<x:t>.x.3.4
+      P (V "1" $ V "2" St) La  -- [1 . 2 . *]
+      (B "x" (TVec [] :=> TVec [TLoc Ho $ TCon "a"]) La             -- <x:t> 
+        $ V "x"                -- x
+        $ V "3"                -- 3
+        $ V "4"                -- 4
+        $ V "+"                -- +
+        $ V "+"                -- +
+        St)                    -- Star
+      
+ex8 = eval1          -- 1 . 2 . <x:t>_ . x . +
+      (V "1"         -- 1
+       $ V "2"       -- 2
+       $ B "x" (TVec [TLoc Ho $ TCon "a"]) Ho -- <x>
+       $ V "x"       -- x
+       $ V "+" St)   -- +
