@@ -12,13 +12,14 @@ printStack (m,b) = "Memory: \n" ++ printer mem ++ "Bindings: \n" ++ printer bin
     mem = M.toList m
     bin = M.toList b
     printer [] = ""
-    printer (x@(l,ts):xs) = show l ++ "[" ++ show ts ++ "]" ++ "\n" ++ printer xs
+    printer ((l,ts):xs) = show l ++ "[" ++ show ts ++ "]" ++ "\n" ++ printer xs
 
-printOutput (m,b) = "Output: \n" ++ printer out
+printOutput :: State -> String 
+printOutput (m,_) = "Output: \n" ++ printer out
   where
     out = maybe [] reverse (m M.!? Out)
-    printer x = case x of
-      [] -> ""
+    printer = \case 
+      []     -> ""
       (x:xs) -> show x ++ "\n" ++ printer xs
     
     

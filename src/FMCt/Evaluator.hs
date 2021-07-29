@@ -1,26 +1,24 @@
 {-#LANGUAGE ScopedTypeVariables#-}
 module FMCt.Evaluator
-  ( eval
+  ( Binds
+  , Memory
+  , State
+  , emptyMem
+  , eval
   , eval1
-  , tCheck'
   , eval1'
   , evalToString
+  , tCheck'
   , tryEval1
-  , State
-  , Binds
-  , Memory
-  , emptyMem
   ) where
 
-import Control.DeepSeq
-import Control.Exception (try, IOException, catch)
+import Control.Exception (try, IOException)
 import Data.Map (Map, (!?))
-import FMCt.Syntax (Tm(..), Lo(..), Vv, Type(..))
+import FMCt.Syntax (Tm(..), Lo(..), Vv )
 import Text.Read (readMaybe)
-import FMCt.TypeChecker (typeCheck, Derivation, TError)
+import FMCt.TypeChecker (typeCheck, TError)
 import qualified Control.Exception as E
 import qualified Data.Map as M
-import Control.Monad (void)
 
 -- | Memory is a Map between a location and a list of Terms.
 type Memory = Map Lo [Tm]
@@ -40,16 +38,9 @@ push t l (m,b) = case m !? l of
                Nothing -> (M.insert l [t]   m, b)
                Just x  -> (M.insert l (t:x) m, b)
 
--- | Pops a term from λ location to a given location
-pushL :: Lo -> State -> State
-pushL l st@(m,b) = case m !? Ho of
-                     Nothing     -> error "Empty Stack when attempting to pop λ location"                    
-                     Just (x:xs) -> push x l (M.insert Ho xs m, b)
-                     Just _      -> error "Empty Stack when attempting to pop λ location"
-
 -- | Binds a term to a value and puts in the memory
 bind :: Vv -> Lo -> State -> State
-bind vv l st@(m,b) = case m !? l of
+bind vv l (m,b) = case m !? l of
                    Nothing      -> error $ "Empty Location " ++ show l
                    Just []      -> error $ "Empty Location " ++ show l
                    Just (x:xs)  -> (M.insert l xs m, M.insert vv [x] b)
@@ -68,40 +59,43 @@ pop n l st@(m,b)
 -- | Hacky way to add numbers - TODO: refactor
 adds :: String -> String -> String
 adds x y = case (readMaybe x :: Maybe Int, readMaybe y :: Maybe Int) of
-             (Just x, Just y) -> show $ x + y
+             (Just x', Just y') -> show $ x' + y'
              _                -> x ++ y
 
+-- | Hacky way to add numbers - TODO: refactor
 add :: State -> State
-add st@(m,b) = t
+add (m,b) = t
   where
     t = case m !? Ho of
-      Just []       -> error "Empty Stack"
+      Nothing       -> error "Not enough numbers to add! Empty Stack!"
+      Just []       -> error "Not enough numbers to add! Empty Stack!"
+      Just [_]      -> error "Not enough numbers to add!"
       Just (x:y:xs) -> case (x, y) of
-                         (V x _ , V y _) -> push (V (x `adds` y) St) Ho (M.insert Ho xs m, b)
+                         (V x' _ , V y' _) -> push (V (x' `adds` y') St) Ho (M.insert Ho xs m, b)
+                         (_,_) -> error $ "Cannot add these terms"
+
         
 evaluate :: Tm -> State -> State
 evaluate (V "+" c) m = evaluate c $ add (pop 2 Ho m)
-  where
-    intermediary = add $ pop 2 Ho m
     
 evaluate St         m = m                  -- does nothing
-evaluate (V x c) st@(m,b) = evaluate c nt -- places value @ lambda pos
+evaluate (V x c) st@(_,b) = evaluate c nt -- places value @ lambda pos
   where
-    nt = if unbound then push (V x St) Ho st
+    nt = if unbound
+         then push (V x St) Ho st
          else push (head et) Ho st
-    et = case b !? x of
-           Just x -> x
-           _      -> error "This should have never happened - pushing unbound"
-    unbound = case b !? x of
-                Nothing -> True
-                _       -> False                
-evaluate (B v ty lo tm) m = evaluate tm (bind v lo m)        -- pops and binds the term
-evaluate (P te l t') st@(m,b) = evaluate t' (push te l st)   -- pushes the term
---evaluate (E t    t') st@(m,b) = evaluate t' (evaluate t st)  -- evaluates the term 
+              
+    et = maybe (error "This should have never happened - pushing unbound") id $
+         b !? x
+         
+    unbound = maybe False (const True) $ b !? x 
+
+evaluate (B v _ lo tm) m = evaluate tm (bind v lo m)        -- pops and binds the term
+evaluate (P te l t') st  = evaluate t' (push te l st)   -- pushes the term
 
 -- | The Empty FMCt Evaluator state.
 emptyMem :: State
-emptyMem = (M.empty, M.empty)
+emptyMem = (,) M.empty M.empty
 
 -- | Takes a list of terms and evaluates them one after another starting from
 -- the head.
@@ -138,37 +132,12 @@ evalToString  term = do
   tc <- tCheck' term
   case tc of
     Left e -> pure $ show e
-    Right x -> pure . show $ eval1 term
+    Right _ -> pure . show $ eval1 term
 
 -- | Evaluates a term and fails safely.
 tryEval1 :: Tm -> IO (Either IOException State)
 tryEval1 term = do
   x :: Either IOException State <- try $ E.evaluate $ eval1 term
   return x
-
-evalIO :: State -> IO ()
-evalIO st@(m,b) = case m !? Out of
-                    Just (x:xs)  -> print (show x)
-                      >> evalIO (M.insert Out xs m, b)
-                    Just []      -> return ()
-                    Nothing      -> return ()
-
--- Some simple examples
-ex7 = eval1 $                  -- [1.2.*].<x:t>.x.3.4
-      P (V "1" $ V "2" St) La  -- [1 . 2 . *]
-      (B "x" (TVec [] :=> TVec [TLoc Ho $ TCon "a"]) La             -- <x:t> 
-        $ V "x"                -- x
-        $ V "3"                -- 3
-        $ V "4"                -- 4
-        $ V "+"                -- +
-        $ V "+"                -- +
-        St)                    -- Star
-      
-ex8 = eval1          -- 1 . 2 . <x:t>_ . x . +
-      (V "1"         -- 1
-       $ V "2"       -- 2
-       $ B "x" (TVec [TLoc Ho $ TCon "a"]) Ho -- <x>
-       $ V "x"       -- x
-       $ V "+" St)   -- +
 
 
