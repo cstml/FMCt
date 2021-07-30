@@ -6,5 +6,5 @@ where
 import FMCt.Parsing     as X ( parseFMC, parseType, parseFMCtoString )
 import FMCt.Evaluator   as X ( eval, eval1, eval1', tCheck', evalToString ) 
 import FMCt.Examples    as X ( examplesList )
-import FMCt.TypeChecker as X ( typeCheck )
+import FMCt.TypeChecker as X ( typeCheck, derive )
 import FMCt.Pretty      as X ( printStack, printOutput)

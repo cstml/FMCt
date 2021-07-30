@@ -13,6 +13,7 @@ where
 
 import FMCt.Syntax
 import Control.Exception
+import Text.Read (readMaybe)
 
 -- | Typechecking Errors.
 data TError
@@ -34,6 +35,8 @@ data Derivation
   | Abstraction !Judgement !Derivation
   | Application !Judgement !Derivation
   | Fusion      !Judgement !Derivation !Derivation
+
+
 
 type Term = Tm
 
@@ -82,11 +85,27 @@ fuseTypesD dL dR = ty
 getJType :: Judgement -> T
 getJType (_,_,x) = x
 
+-- | Merge contexts
+mergeCtx :: Context -> Context -> Context
+mergeCtx ox oy = makeSet ox oy
+  where
+    makeSet [] x  = x
+    makeSet (t:xs) [] = t : makeSet xs oy 
+    makeSet t@((term,ty):xs) ((term',ty'):ys)
+      = if term /= term' then makeSet t ys
+        else if ty == ty' then makeSet xs oy
+             else throw $ ErrOverride $ "Type Conflict between: "
+                  ++ show term ++ ":" ++ show ty ++ " and "
+                  ++ show term' ++ ":" ++ show ty'
+
+
 -- | Second step is to add our known variables to the context
 derive :: Term -> Derivation
-derive = derive' freshVarTypes [(St, TCon [] :=> TCon [])]
+derive p = derive' freshVarTypes (buildContext emptyCtx p) p
   where
 
+    emptyCtx = [(St, TCon [] :=> TCon [])]
+    
     -- | Get the context 
     gCtx :: Derivation -> Context
     gCtx = \case
@@ -103,19 +122,6 @@ derive = derive' freshVarTypes [(St, TCon [] :=> TCon [])]
                           , " in context. Have you defined it prior to calling it ?"]
                          
     getType t ((t',ty):xs) = if t == t' then ty else getType t xs
-
-    -- | Merge contexts
-    mergeCtx :: Context -> Context -> Context
-    mergeCtx ox oy = makeSet ox oy
-      where
-        makeSet [] x  = x
-        makeSet (t:xs) [] = t : makeSet xs oy 
-        makeSet t@((term,ty):xs) ((term',ty'):ys)
-          = if term /= term' then makeSet t ys
-            else if ty == ty' then makeSet xs oy
-                 else throw $ ErrOverride $ "Type Conflict between: "
-                      ++ show term ++ ":" ++ show ty ++ " and "
-                      ++ show term' ++ ":" ++ show ty'
 
     -- | Get the type from a Derivation
     getUpperType :: Derivation -> T
@@ -326,7 +332,54 @@ consume t1@(tIn :=> tOut) t2@(tIn' :=> tOut') = result
             ]
 consume _ _ = (throw . ErrWrongT) $ "Cannot consume types which are not of the form (* => *)"
 
+data Operations = Add
+                | Subtract
+                | If
+                 deriving (Eq, Ord, Show)
+
+instance Read Operations where
+  readsPrec _ = \case
+    "+"  -> return (Add, mempty)
+    "-"  -> return (Subtract, mempty)
+    "if" -> return (If,mempty)
+    i    -> return (error "", i)
+
+
+-- | Pre parses the Term for primitives and adds their type to the context.
+buildContext :: Context -> Term -> Context
+buildContext eCtx =
+  let
+    opType :: Operations -> T
+    opType = \case
+      Add      -> TVec [TCon "Int", TCon "Int"] :=> TCon "Int"
+      Subtract -> TVec [TCon "Int", TCon "Int"] :=> TCon "Int"
+      If       -> error "Not yet implemented!"
+  in \case
+    term@(V x St) -> do 
+      let int    = (readMaybe x) :: Maybe Int
+      let bool   = (readMaybe x) :: Maybe Bool
+      let op     = (readMaybe x) :: Maybe Operations
+      let nCtx   = maybe [] (const [(term,mempty :=> TCon "Int")]) int
+      let nCtx'  = maybe [] (const [(term,mempty :=> TCon "Bool")]) bool
+      let nCtx'' = maybe [] ((:[]).((,) term) . opType ) op 
+      foldr1 mergeCtx $ eCtx : nCtx : nCtx' : nCtx'' : []
+
+    V x t' -> do
+      let lCtx = buildContext eCtx (V x St)
+      let rCtx = buildContext eCtx t'
+      mergeCtx lCtx rCtx
+
+    P t _ t' -> do
+      let lCtx = buildContext eCtx t
+      let rCtx = buildContext eCtx t'
+      mergeCtx lCtx rCtx      
+
+    B _ _ _ t -> buildContext eCtx t
+      
+    St -> eCtx
+    
 -- Show Instance
+-- Inspired by previous CW.
 instance Show Derivation where
   show d = unlines (reverse strs)
     where      
@@ -375,3 +428,5 @@ instance Show Derivation where
         
         | otherwise
         = ( l1 , m1+r1+2+l2+m2 , r2 , [ x ++ " " ++ y | (x,y) <- zip (extend (l1+m1+r1) d1) d2])
+
+
