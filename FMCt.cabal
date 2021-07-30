@@ -9,7 +9,7 @@ copyright:              "Copyright belongs to Vlad Posmangiu Luchian, 2021."
 category:               Language
 build-type:             Simple
 extra-source-files:     CHANGELOG.md,
-                        README.org
+                        README.md
                         
 common common-specs     
   Ghc-Options:          -Wno-name-shadowing
