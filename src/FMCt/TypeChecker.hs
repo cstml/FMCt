@@ -36,8 +36,6 @@ data Derivation
   | Application !Judgement !Derivation
   | Fusion      !Judgement !Derivation !Derivation
 
-
-
 type Term = Tm
 
 --------------------------------------------------------------------------------
@@ -293,16 +291,22 @@ consumes = \case
 
 -- | Normalise gets rid of empty Types at locations.
 normaliseT :: T -> T
-normaliseT = \case
-  x@(TCon _)        -> x
-  TVec []           -> mempty
-  TLoc _ (TVec [])  -> mempty
-  TLoc _ (TCon "")  -> mempty
-  TVec (x:[])       -> normaliseT x
-  t1 :=> t2         -> normaliseT t1 :=> normaliseT t2
-  TVec x            -> TVec $ fEmpty $ normaliseT <$> x
-    where fEmpty = filter (not . aux); aux y = y == TCon "" || y == TVec []
-  x -> id x -- Just to be sure it gets through.
+normaliseT t
+  | t == normalisedT = normalisedT
+  | otherwise        = normaliseT normalisedT
+  where
+    
+    normalisedT = normaliseT' t
+    
+    normaliseT' = \case
+      TVec []           -> mempty
+      TLoc _ (TVec [])  -> mempty
+      TLoc _ (TCon "")  -> mempty
+      TLoc l (TVec (x:xs)) -> TLoc l x <> (TLoc l $ TVec xs)
+      TVec ([x])        -> normaliseT x
+      t1 :=> t2         -> normaliseT t1 :=> normaliseT t2
+      TVec (x:xs)       -> normaliseT x <> (normaliseT $ TVec xs)
+      x -> x -- Just to be sure it gets through.
 
 -- | Consume                                 
 consume :: T -> T -> Either String T
