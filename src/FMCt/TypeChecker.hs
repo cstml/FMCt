@@ -17,16 +17,17 @@ import Text.Read (readMaybe)
 
 -- | Typechecking Errors.
 data TError
-  = ErrSimple   String          -- ^ A Simple Error.
-  | ErrUndefT   String          -- ^ An undefined Type.
-  | ErrMerge    String          -- ^ A merge Error.
-  | ErrOverride String          -- ^ Attempting to override declared variable.
-  | ErrWrongT   String          -- ^ Attemptin to use the wrong types
+  = ErrSimple    String          -- ^ A Simple Error.
+  | ErrUndefT    String          -- ^ An undefined Type.
+  | ErrMerge     String          -- ^ A merge Error.
+  | ErrOverride  String          -- ^ Attempting to override declared variable.
+  | ErrWrongT    String          -- ^ Attemptin to use the wrong types
+  | ErrNotBinder String
   deriving Show
 
 instance Exception TError
 
-type Context = [(Term, T)]
+type Context = [(Vv, T)]
 type Judgement = (Context, Term, T)
 
 data Derivation
@@ -71,7 +72,6 @@ splitStream x = (,) l r
     r = snd <$> (filter ( not . odd . fst ) $ zip ([1..] :: [Integer]) x)              
 
 --------------------------------------------------------------------------------
---
 
 fuseTypesD :: Derivation -> Derivation -> T
 fuseTypesD dL dR = ty 
@@ -101,8 +101,7 @@ mergeCtx ox oy = makeSet ox oy
 derive :: Term -> Derivation
 derive p = derive' freshVarTypes (buildContext emptyCtx p) p
   where
-
-    emptyCtx = [(St, TCon [] :=> TCon [])]
+    emptyCtx = [("*", TCon [] :=> TCon [])]
     
     -- | Get the context 
     gCtx :: Derivation -> Context
@@ -115,11 +114,15 @@ derive p = derive' freshVarTypes (buildContext emptyCtx p) p
 
     -- | Get type of term from Context.
     getType :: Term -> Context -> T
-    getType t [] = throw $
-      ErrUndefT $ mconcat ["Cannot Find type for term: ", show t
-                          , " in context. Have you defined it prior to calling it ?"]
-                         
-    getType t ((t',ty):xs) = if t == t' then ty else getType t xs
+    getType = \case
+      t@(V b St) -> \case
+        [] -> throw $ ErrUndefT $
+              mconcat ["Cannot Find type for binder: ", show b
+                      , " in context. Have you defined it prior to calling it ?"]
+        ((b',ty):xs) -> if b == b' then ty else getType t xs
+      St -> \_ -> mempty :=> mempty
+      t  -> throw $ ErrNotBinder $
+            mconcat ["Attempting to get type of:", show t]
 
     -- | Get the type from a Derivation
     getUpperType :: Derivation -> T
@@ -150,17 +153,17 @@ derive p = derive' freshVarTypes (buildContext emptyCtx p) p
               (nStreamL,nStreamR) = splitStream nStream
               
           B x t lo St -> Abstraction (ctx', term, ty) nDeriv
-            where              
+            where
               ty      = TLoc lo t :=> TCon []
               nStream = tail stream
               nDeriv  = derive' nStream ctx' (V x St)
-              ctx'    = (V x St, t) : ctx 
+              ctx'    = (x,t) : ctx
               
           B x t lo t' -> Fusion (ctx', term, ty) dLeft dRight
             where
               dLeft    = derive' nStreamL ctx (B x t lo St)
               dRight   = derive' nStreamR ctx' t'
-              ctx'     = (V x St, t) : ctx
+              ctx'     = (x, t) : ctx
               ty       = fuseTypesD dLeft dRight
               nStream  = tail stream
               (nStreamL, nStreamR) = splitStream nStream
@@ -339,7 +342,7 @@ consume _ _ = (throw . ErrWrongT) $ "Cannot consume types which are not of the f
 data Operations = Add
                 | Subtract
                 | If
-                 deriving (Eq, Ord, Show)
+                 deriving (Eq, Ord)
 
 instance Read Operations where
   readsPrec _ = \case
@@ -348,6 +351,11 @@ instance Read Operations where
     "if" -> return (If,mempty)
     i    -> return (error "", i)
 
+instance Show Operations where
+  show = \case
+    Add -> "+"
+    Subtract -> "-"
+    If -> "if"
 
 -- | Pre parses the Term for primitives and adds their type to the context.
 buildContext :: Context -> Term -> Context
@@ -359,13 +367,13 @@ buildContext eCtx =
       Subtract -> TVec [TCon "Int", TCon "Int"] :=> TCon "Int"
       If       -> error "Not yet implemented!"
   in \case
-    term@(V x St) -> do 
+    V x St -> do 
       let int    = (readMaybe x) :: Maybe Int
       let bool   = (readMaybe x) :: Maybe Bool
       let op     = (readMaybe x) :: Maybe Operations
-      let nCtx   = maybe [] (const [(term,mempty :=> TCon "Int")]) int
-      let nCtx'  = maybe [] (const [(term,mempty :=> TCon "Bool")]) bool
-      let nCtx'' = maybe [] ((:[]).((,) term) . opType ) op 
+      let nCtx   = maybe [] (const [(x,mempty :=> TCon "Int")]) int
+      let nCtx'  = maybe [] (const [(x,mempty :=> TCon "Bool")]) bool
+      let nCtx'' = maybe [] ((:[]).((,) x) . opType ) op 
       foldr1 mergeCtx $ eCtx : nCtx : nCtx' : nCtx'' : []
 
     V x t' -> do
