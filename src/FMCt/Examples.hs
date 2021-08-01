@@ -6,7 +6,7 @@ module FMCt.Examples
   )
 where
 import FMCt.Parsing (parseFMC) 
-import FMCt.TypeChecker (derive, fuse, consumes, consume)
+import FMCt.TypeChecker (derive, fuse, consumes, consume, TError)
 import FMCt.Syntax (T, Type(..), Lo(..), Tm(..))
 import FMCt.Evaluator
 
@@ -59,7 +59,7 @@ xc7 = consumes (TVec [ TCon "x", TLoc Ho $ TCon "y" ]) (TVec [ TLoc Ho $ TCon "y
 -- | This should saturate, even though the inputs are reversed
 xc8 = consumes (TVec [ TCon "x", TLoc Ho $ TCon "y" ]) (TVec [ TLoc Ho $ TCon "y", TCon "x" ])
 
-exCons :: Either String T
+exCons :: Either TError T
 -- | Simple fusion example.
 exCons = (TCon "a" :=> TCon "b") `consume` (TCon "b" :=> TCon "c")
 -- | This Time wrapped in a vector.
