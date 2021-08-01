@@ -12,6 +12,7 @@ module FMCt.TypeChecker
   )
 where
 
+import FMCt.Parsing
 import FMCt.Syntax
 import Control.Exception
 import Text.Read (readMaybe)
@@ -172,11 +173,11 @@ derive p = derive' freshVarTypes (buildContext emptyCtx p) p
               
           B x t lo St -> Abstraction (ctx', term, ty) nDeriv
             where
-              t'      = mempty :=> TLoc Ho t
+              t'      = normaliseT $ mempty :=>  TLoc Ho t
               ty      = TLoc lo t' :=> TCon []
               nStream = tail stream
               nDeriv  = derive' nStream ctx' (V x St)
-              ctx'    = (x,t) : ctx
+              ctx'    = (x,t') : ctx
               
           B x t lo t' -> Fusion (ctx', term, ty) dLeft dRight
             where
