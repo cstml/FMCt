@@ -19,7 +19,7 @@ instance Exception PError
 
 -- | Main Parsing Function. (Unsafe)
 parseFMC :: String -> Tm
-parseFMC x = either (E.throw . PTermErr . show) id $ parse term "FMCParser" x 
+parseFMC x = either (E.throw . PTermErr . show) id $ parse term "FMC Parser" x 
 
 -- | Main Parsing Function. (Safe)
 parseFMC' :: String -> Either ParseError Tm
@@ -33,10 +33,9 @@ parseFMCtoString x = either show show $ parse term "FMCParser" x
 parseType :: String -> T
 parseType x = either (E.throw . PTypeErr . show)  id $  parse termType "TypeParser" x 
 
-
 -- | Term Parser.
 term :: Parser Tm
-term = choice [variable, application, abstraction, star]
+term = choice $ try <$> [variable, application, abstraction, star]
 
 -- | Abstraction Parser.
 --
@@ -67,19 +66,19 @@ star :: Parser Tm
 star = (eof >> return St) <|> (char '*' >> return St)
 
 location :: Parser Lo
-location = 
-  choice $ try <$> [ string "out" >> return Out
-                   , string "in" >> return In
-                   , string "rnd" >> return Rnd
-                   , string "nd" >> return Nd
-                   , string "λ" >> return La
-                   , string "^" >> return La
-                   , string "_" >> return Ho
-                   , string "γ" >> return Ho 
-                   , do s <- many1 alphaNumeric
-                        return $ Lo s
-                   , string "" >> return La
-                   ]
+location = choice $  try <$>
+  [ string "out" >> return Out
+  , string "in" >> return In
+  , string "rnd" >> return Rnd
+  , string "nd" >> return Nd
+  , string "λ" >> return La
+  , string "^" >> return La
+  , string "_" >> return Ho
+  , string "γ" >> return Ho 
+  , do s <- many1 alphaNumeric
+       return $ Lo s
+  , string "" >> return La
+  ]
 
 type TConstant = String
 

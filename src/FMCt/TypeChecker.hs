@@ -3,6 +3,7 @@
 module FMCt.TypeChecker
   ( TError(..)
   , typeCheck
+  , typeCheckP
   , derive
   , fuse
   , consumes
@@ -27,6 +28,15 @@ data TError
 
 instance Exception TError
 
+getErrMsg :: TError -> String
+getErrMsg = \case
+  ErrSimple    x -> x
+  ErrUndefT    x -> x       -- ^ An undefined Type.
+  ErrMerge     x -> x       -- ^ A merge Error.
+  ErrOverride  x -> x       -- ^ Attempting to override declared variable.
+  ErrWrongT    x -> x       -- ^ Attemptin to use the wrong types
+  ErrNotBinder x -> x
+
 type Context = [(Vv, T)]
 type Judgement = (Context, Term, T)
 
@@ -44,6 +54,14 @@ type Term = Tm
 
 typeCheck :: Tm -> Derivation
 typeCheck = derive
+
+-- | Typecheck Print - useful for debugging.
+typeCheckP :: Tm -> IO ()
+typeCheckP t = do
+  res  <- try $ evaluate $ (show . derive) t 
+  either (\x -> (putStrLn . getErrMsg) (x :: TError)) putStrLn res 
+  
+  
 
 --------------------------------------------------------------------------------
 -- Aux Functions
@@ -142,7 +160,7 @@ derive p = derive' freshVarTypes (buildContext emptyCtx p) p
 
           V _ St -> Variable (ctx, term, ty)
             where
-              ty = getType term ctx
+              ty = mempty :=> TLoc Ho (getType term ctx)
 
           V x t  -> Fusion (ctx, term, ty) dLeft dRight
             where
@@ -154,7 +172,8 @@ derive p = derive' freshVarTypes (buildContext emptyCtx p) p
               
           B x t lo St -> Abstraction (ctx', term, ty) nDeriv
             where
-              ty      = TLoc lo t :=> TCon []
+              t'      = mempty :=> TLoc Ho t
+              ty      = TLoc lo t' :=> TCon []
               nStream = tail stream
               nDeriv  = derive' nStream ctx' (V x St)
               ctx'    = (x,t) : ctx
@@ -371,7 +390,7 @@ buildContext eCtx =
       let int    = (readMaybe x) :: Maybe Int
       let bool   = (readMaybe x) :: Maybe Bool
       let op     = (readMaybe x) :: Maybe Operations
-      let nCtx   = maybe [] (const [(x,mempty :=> TCon "Int")]) int
+      let nCtx   = maybe [] (const [(x,TCon "Int")]) int
       let nCtx'  = maybe [] (const [(x,mempty :=> TCon "Bool")]) bool
       let nCtx'' = maybe [] ((:[]).((,) x) . opType ) op 
       foldr1 mergeCtx $ eCtx : nCtx : nCtx' : nCtx'' : []
