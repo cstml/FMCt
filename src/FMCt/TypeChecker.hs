@@ -32,11 +32,11 @@ instance Exception TError
 getErrMsg :: TError -> String
 getErrMsg = \case
   ErrSimple    x -> x
-  ErrUndefT    x -> x       -- ^ An undefined Type.
-  ErrMerge     x -> x       -- ^ A merge Error.
-  ErrOverride  x -> x       -- ^ Attempting to override declared variable.
-  ErrWrongT    x -> x       -- ^ Attemptin to use the wrong types
-  ErrNotBinder x -> x
+  ErrUndefT    x -> x       --  An undefined Type.
+  ErrMerge     x -> x       --  A merge Error.
+  ErrOverride  x -> x       --  Attempting to override declared variable.
+  ErrWrongT    x -> x       --  Attemptin to use the wrong types
+  ErrNotBinder x -> x       --  Not a Binder.
 
 type Context = [(Vv, T)]
 type Judgement = (Context, Term, T)
