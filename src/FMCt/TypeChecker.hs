@@ -158,34 +158,36 @@ derive p = derive' freshVarTypes (buildContext emptyCtx p) p
       = case term of  
           St ->
             case getType term ctx of
+              Left e -> Left e               
               Right ty -> Right $ Star (ctx, St, ty)
-              Left e -> Left e 
+
 
           V _ St ->
             case (getType term ctx) of
+              Left e -> Left e
               Right z -> Right $ Variable (ctx, term, ty)
                 where
                   ty = mempty :=> TLoc Ho z
-              Left e -> Left e 
+
 
           V x t  ->
             case derive' nStreamL ctx (V x St) of
+              Left e -> Left e
               Right dLeft ->
                 case derive' nStreamR ctx t of
+                  Left e -> Left e
                   Right dRight ->
                     case fuseTypesD dLeft dRight of
-                      Right ty -> Right $ Fusion (ctx, term, ty) dLeft dRight
                       Left e   -> Left e
-                  Left e -> Left e
-              Left e -> Left e 
+                      Right ty -> Right $ Fusion (ctx, term, ty) dLeft dRight
             where
               nStream             = tail stream
               (nStreamL,nStreamR) = splitStream nStream
               
           B x t lo St ->
             case derive' nStream ctx' (V x St) of
+              Left e       -> Left e               
               Right nDeriv -> Right $ Abstraction (ctx', term, ty) nDeriv
-              Left e       -> Left e 
             where
               t'      = normaliseT $ mempty :=>  TLoc Ho t
               ty      = TLoc lo t' :=> TCon []
@@ -194,14 +196,14 @@ derive p = derive' freshVarTypes (buildContext emptyCtx p) p
               
           B x t lo t' ->
             case derive' nStreamL ctx (B x t lo St) of
+              Left e -> Left e
               Right dLeft ->
                 case derive' nStreamR ctx' t' of
+                  Left e -> Left e
                   Right dRight ->
                     case fuseTypesD dLeft dRight of
-                      Right ty -> Right $ Fusion (ctx', term, ty) dLeft dRight
                       Left e -> Left e
-                  Left e -> Left e
-              Left e -> Left e 
+                      Right ty -> Right $ Fusion (ctx', term, ty) dLeft dRight
             where
               ctx'     = (x, t) : ctx
               nStream  = tail stream
@@ -209,30 +211,29 @@ derive p = derive' freshVarTypes (buildContext emptyCtx p) p
 
           P t lo St ->
             case derive' nStream ctx t of
+              Left e -> Left e               
               Right nDeriv -> Right $ Application (ctx, term, ty) nDeriv
                 where
                   uty = getUpperType nDeriv
                   ty = TCon [] :=> TLoc lo uty
-              Left e -> Left e 
             where
               nStream = tail stream
 
           P t lo t' ->
             case derive' nStreamL ctx (P t lo St) of
+              Left e -> Left e
               Right dLeft ->
                 case derive' nStreamR ctx t' of
+                  Left e -> Left e                  
                   Right dRight ->
                     case fuseTypesD dLeft dRight of
+                      Left e -> Left e 
                       Right ty -> Right $ Fusion (nctx, term, ty) dLeft dRight
                         where
-                          nctx =  mergeCtx (gCtx dLeft) (gCtx dRight)                  
-                      Left e -> Left e
-                  Left e -> Left e
-              Left e -> Left e 
+                          nctx =  mergeCtx (gCtx dLeft) (gCtx dRight)                           
             where
               nStream = tail stream
               (nStreamL, nStreamR) = splitStream nStream
-
 
 fuse :: T -> T -> Either TError T
 fuse = \case
@@ -242,50 +243,79 @@ fuse = \case
   
   x@(TCon _)  -> \case
     TCon ""          -> Right x
+    
     y@(TCon _)       -> Right $ TVec [x,y]
+    
     TVec []          -> Right $ TVec [x]
-    TVec (y:ys)      -> case (fuse x y) of
-                          Right z -> fuse z (TVec ys)
-                          Left e -> Left e
+    
+    TVec (y:ys)      ->
+      case (fuse x y) of
+        Left  e -> Left e
+        Right z -> fuse z (TVec ys)
+        
     y@(TLoc _ _)     -> Right $ TVec [x,y]
-    y@(_ :=> _)      -> case consume y (mempty :=> x) of
-                          Right z -> Right $ normaliseT z
-                          Left e -> Left e 
+    
+    y@(_ :=> _)      ->
+      case consume y (mempty :=> x) of
+        Left  e -> Left e 
+        Right z -> Right $ normaliseT z
+
     
   xxx@(TVec xx@(x:_))  -> \case
     TCon ""          -> Right xxx
+    
     y@(TCon _)       -> Right . TVec $ xx ++ [y]
+    
     TVec []          -> Right xxx
-    TVec (y:ys)      -> case fuse xxx y of
-                          Right z -> fuse z (TVec ys) 
-                          Left e -> Left e
+    
+    TVec (y:ys)      ->
+      case fuse xxx y of
+        Right z -> fuse z (TVec ys) 
+        Left e -> Left e
+        
     y@(TLoc _ _)     -> Right $ TVec [x,y]
-    y@(_ :=> _)      -> case consume y (mempty :=> xxx) of
-                          Right z -> (Right . normaliseT) z
-                          Left e -> Left e 
+    
+    y@(_ :=> _)      ->
+      case consume y (mempty :=> xxx) of
+        Right z -> (Right . normaliseT) z
+        Left e -> Left e 
     
   x@(TLoc l t) -> \case
     TCon ""          -> Right x
+    
     y@(TCon _)       -> Right . TVec $ x : y : []
+    
     TVec []          -> Right x
-    TVec (y:ys)      -> case (fuse x y) of
-                          Right z -> fuse z (TVec ys)
-                          Left e -> Left e
-    y@(TLoc l' t')   -> if l == l'
-                        then case fuse t t' of
-                               Right z -> Right $ TLoc l z
-                               Left e -> Left e
-                        else Right $ TVec [x,y]
+    
+    TVec (y:ys)      ->
+      case (fuse x y) of
+        Left e  -> Left e
+        Right z -> fuse z (TVec ys)
+
+                          
+    y@(TLoc l' t')   ->
+      if l == l'
+      then case fuse t t' of
+             Right z -> Right $ TLoc l z
+             Left e -> Left e
+      else Right $ TVec [x,y]
+      
     y@(_ :=> _)    -> normaliseT <$> consume y (mempty :=> x)
 
   x@(_ :=> _)  -> \case
     TCon ""          -> Right x
+    
     y@(TCon _)       -> fuse (mempty :=> y) x
+    
     TVec []          -> Right x
-    TVec (y:ys)      -> case (fuse x y) of
-                          Right z -> fuse z (TVec ys)
-                          Left e -> Left e 
+    
+    TVec (y:ys)      ->
+      case (fuse x y) of
+        Right z -> fuse z (TVec ys)
+        Left e -> Left e
+        
     y@(TLoc _ _)     -> fuse (mempty :=> y) x
+    
     y@(_ :=> _)      -> normaliseT <$> consume x y
 
 consumes :: T
@@ -300,39 +330,46 @@ consumes = \case
   TVec [] -> Right . (,) mempty . id
 
   xx@(TCon x)  -> \case
+    
     TCon ""     -> Right $ (,) xx mempty
-    yy@(TCon y) -> if x == y
-                   then Right $ (,) mempty mempty
-                   else Left $ ErrMerge $
-                          mconcat [ "cannot merge ", show xx , " " , show yy ]
+    
+    yy@(TCon y) ->
+      if x == y
+      then Right $ (,) mempty mempty
+      else Left $ ErrMerge $ mconcat [ "cannot merge ", show xx , " " , show yy ]
+      
     TVec []     -> Right $ (,) xx mempty
+    
     TVec (y:ys) ->
-      case consumes xx y of 
+      case consumes xx y of
+        Left e -> Left e         
         Right (res1, left1) ->
           case consumes res1 (TVec ys) of
+            Left e -> Left e            
             Right (res2, left2) -> Right $ (,) res2 (left1 <> left2)
-            Left e -> Left e
-        Left e -> Left e 
+            
     yy          -> Right (xx,yy)
 
   xxx@(TVec (x:xs)) -> \case
     TCon ""     -> Right $ (,) xxx mempty
+    
     TVec []     -> Right $ (,) xxx mempty
+    
     TVec (y:ys) ->
-      case consumes xxx y of 
+      case consumes xxx y of
+        Left e -> Left e 
         Right (res1,left1) ->
           case consumes res1 (TVec ys) of
+            Left e -> Left e                                
             Right (res2,left2) -> Right $ (,) res2 (left1 <> left2)
-            e -> e
-        e -> e 
             
     y ->
-      case  consumes x y of
+      case consumes x y of
+        Left e -> Left e 
         Right (res1,left1) ->
           case consumes (TVec xs) left1 of
+            Left e -> Left e 
             Right (res2,left2) -> Right $ (,) (res1 <> res2) (left2)
-            e -> e
-        e -> e 
 
   x@(TLoc l t) -> \case
     TCon "" -> Right $ (,) x mempty
@@ -342,14 +379,14 @@ consumes = \case
       -- interaction between the types.
       if l == l'
       then case  consumes t t' of
-          Right (res, left) ->
+          Left e -> Left e                                
+          Right (res, left) -> Right $
             let               
               left' = if left == mempty || left == TVec []
                       then mempty
                       else TLoc l left
             in
-              Right $ (,) res left'
-          e -> e 
+              (,) res left'
 
         -- Otherwise they don't interact 
       else Right $ (,) x y
