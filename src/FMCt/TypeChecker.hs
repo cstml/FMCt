@@ -12,9 +12,10 @@ module FMCt.TypeChecker
   )
 where
 
-import FMCt.Parsing
+--import FMCt.Parsing
 import FMCt.Syntax
 import Control.Exception
+--import Control.Applicative
 import Text.Read (readMaybe)
 
 -- | Typechecking Errors.
@@ -136,11 +137,8 @@ derive p = derive' freshVarTypes (buildContext emptyCtx p) p
         [] -> Left $ ErrUndefT $
               mconcat ["Cannot Find type for binder: ", show b
                       , " in context. Have you defined it prior to calling it ?"]
-        ((b',ty):xs) ->
-          if b == b'
-          then Right ty
-          else getType t xs
-      St -> \_ -> Right $ mempty :=> mempty
+        ((b',ty):xs) -> if b == b' then pure ty else getType t xs
+      St -> \_ -> pure $ mempty :=> mempty
       t  -> \_ -> Left . ErrNotBinder $
                   mconcat ["Attempting to get type of:", show t]
 
@@ -156,166 +154,93 @@ derive p = derive' freshVarTypes (buildContext emptyCtx p) p
     derive' :: [T] -> Context -> Term -> Either TError Derivation
     derive' stream ctx term 
       = case term of  
-          St ->
-            case getType term ctx of
-              Left e -> Left e               
-              Right ty -> Right $ Star (ctx, St, ty)
+          St -> Star . (,,) ctx St  <$> ty 
+            where ty = getType term ctx
 
-
-          V _ St ->
-            case (getType term ctx) of
-              Left e -> Left e
-              Right z -> Right $ Variable (ctx, term, ty)
-                where
-                  ty = mempty :=> TLoc Ho z
-
-
-          V x t  ->
-            case derive' nStreamL ctx (V x St) of
-              Left e -> Left e
-              Right dLeft ->
-                case derive' nStreamR ctx t of
-                  Left e -> Left e
-                  Right dRight ->
-                    case fuseTypesD dLeft dRight of
-                      Left e   -> Left e
-                      Right ty -> Right $ Fusion (ctx, term, ty) dLeft dRight
+          V _ St -> Variable . (,,) ctx term <$> ty
             where
-              nStream             = tail stream
+              ut = getType term ctx
+              ty = ((mempty :=>) . TLoc Ho) <$> ut
+
+
+          V x t  -> Fusion <$> ((,,) ctx term <$> ty) <*> dLeft <*> dRight 
+            where
+              dLeft = derive' nStreamL ctx (V x St)
+              dRight = derive' nStreamR ctx t 
+              ty = squish $ pure fuseTypesD <*> dLeft <*> dRight
+              nStream = tail stream
               (nStreamL,nStreamR) = splitStream nStream
+              squish = either Left id :: Either a (Either a b) -> Either a b
               
-          B x t lo St ->
-            case derive' nStream ctx' (V x St) of
-              Left e       -> Left e               
-              Right nDeriv -> Right $ Abstraction (ctx', term, ty) nDeriv
+          B x t lo St -> Abstraction (ctx', term, ty) <$> nDeriv
             where
+              nDeriv  = derive' nStream ctx' (V x St)
               t'      = normaliseT $ mempty :=>  TLoc Ho t
               ty      = TLoc lo t' :=> TCon []
               nStream = tail stream
               ctx'    = (x,t') : ctx
               
-          B x t lo t' ->
-            case derive' nStreamL ctx (B x t lo St) of
-              Left e -> Left e
-              Right dLeft ->
-                case derive' nStreamR ctx' t' of
-                  Left e -> Left e
-                  Right dRight ->
-                    case fuseTypesD dLeft dRight of
-                      Left e -> Left e
-                      Right ty -> Right $ Fusion (ctx', term, ty) dLeft dRight
+          B x t lo t' -> Fusion <$> ((,,) ctx' term <$> ty) <*> dLeft <*> dRight
             where
               ctx'     = (x, t) : ctx
               nStream  = tail stream
               (nStreamL, nStreamR) = splitStream nStream
+              dLeft = derive' nStreamR ctx' t'
+              dRight = derive' nStreamL ctx (B x t lo St)
+              ty = either Left id $ fuseTypesD <$> dLeft <*> dRight
 
-          P t lo St ->
-            case derive' nStream ctx t of
-              Left e -> Left e               
-              Right nDeriv -> Right $ Application (ctx, term, ty) nDeriv
-                where
-                  uty = getUpperType nDeriv
-                  ty = TCon [] :=> TLoc lo uty
+          P t lo St -> Application <$> ((,,) ctx term <$> ty) <*> nDeriv
+            where
+              uty = getUpperType <$> nDeriv
+              ty = (TCon [] :=>) <$> TLoc lo <$> uty
+              nStream = tail stream
+              nDeriv = derive' nStream ctx t
+
+          P t lo t' -> Fusion <$> ((,,) <$> nctx <*> pure term <*> ty) <*> dLeft <*> dRight          
             where
               nStream = tail stream
-
-          P t lo t' ->
-            case derive' nStreamL ctx (P t lo St) of
-              Left e -> Left e
-              Right dLeft ->
-                case derive' nStreamR ctx t' of
-                  Left e -> Left e                  
-                  Right dRight ->
-                    case fuseTypesD dLeft dRight of
-                      Left e -> Left e 
-                      Right ty -> Right $ Fusion (nctx, term, ty) dLeft dRight
-                        where
-                          nctx =  mergeCtx (gCtx dLeft) (gCtx dRight)                           
-            where
-              nStream = tail stream
+              dLeft = derive' nStreamL ctx $ P t lo St
+              dRight = derive' nStreamR ctx t'
+              ty = either Left id $ fuseTypesD <$> dLeft <*> dRight
+              nctx =  mergeCtx <$> (gCtx <$> dLeft) <*> (gCtx <$> dRight) 
               (nStreamL, nStreamR) = splitStream nStream
+
+flat :: Either a (Either a b) -> Either a b
+flat = either Left id 
 
 fuse :: T -> T -> Either TError T
 fuse = \case
-  TCon "" -> Right . normaliseT
-
-  TVec [] -> Right . normaliseT
-  
+  TCon "" -> pure . normaliseT
+  TVec [] -> pure . normaliseT
   x@(TCon _)  -> \case
-    TCon ""          -> Right x
-    
-    y@(TCon _)       -> Right $ TVec [x,y]
-    
-    TVec []          -> Right $ TVec [x]
-    
-    TVec (y:ys)      ->
-      case (fuse x y) of
-        Left  e -> Left e
-        Right z -> fuse z (TVec ys)
-        
-    y@(TLoc _ _)     -> Right $ TVec [x,y]
-    
-    y@(_ :=> _)      ->
-      case consume y (mempty :=> x) of
-        Left  e -> Left e 
-        Right z -> Right $ normaliseT z
-
-    
+    TCon ""          -> pure x   
+    y@(TCon _)       -> pure $ TVec [x,y]
+    TVec []          -> pure $ TVec [x]
+    TVec (y:ys)      -> flat $ fuse <$> fuse x y <*> pure (TVec ys)        
+    y@(TLoc _ _)     -> pure $ TVec [x,y]    
+    y@(_ :=> _)      -> normaliseT <$> consume y (mempty :=> x)    
   xxx@(TVec xx@(x:_))  -> \case
-    TCon ""          -> Right xxx
-    
-    y@(TCon _)       -> Right . TVec $ xx ++ [y]
-    
-    TVec []          -> Right xxx
-    
-    TVec (y:ys)      ->
-      case fuse xxx y of
-        Right z -> fuse z (TVec ys) 
-        Left e -> Left e
-        
-    y@(TLoc _ _)     -> Right $ TVec [x,y]
-    
-    y@(_ :=> _)      ->
-      case consume y (mempty :=> xxx) of
-        Right z -> (Right . normaliseT) z
-        Left e -> Left e 
-    
+    TCon ""          -> pure xxx    
+    y@(TCon _)       -> pure . TVec $ xx ++ [y]    
+    TVec []          -> pure xxx    
+    TVec (y:ys)      -> flat $ fuse <$> fuse xxx y <*> pure (TVec ys)        
+    y@(TLoc _ _)     -> pure $ TVec [x,y]    
+    y@(_ :=> _)      -> normaliseT <$> consume y (mempty :=> xxx)    
   x@(TLoc l t) -> \case
-    TCon ""          -> Right x
-    
-    y@(TCon _)       -> Right . TVec $ x : y : []
-    
-    TVec []          -> Right x
-    
-    TVec (y:ys)      ->
-      case (fuse x y) of
-        Left e  -> Left e
-        Right z -> fuse z (TVec ys)
-
-                          
-    y@(TLoc l' t')   ->
-      if l == l'
-      then case fuse t t' of
-             Right z -> Right $ TLoc l z
-             Left e -> Left e
-      else Right $ TVec [x,y]
-      
-    y@(_ :=> _)    -> normaliseT <$> consume y (mempty :=> x)
-
+    TCon ""          -> pure x    
+    y@(TCon _)       -> pure $ TVec [x,y]    
+    TVec []          -> pure x    
+    TVec (y:ys)      -> flat $ fuse <$> fuse x y <*> pure (TVec ys)                          
+    y@(TLoc l' t')   -> if l == l'
+                        then TLoc l <$> fuse t t'
+                        else pure $ TVec [x,y]      
+    y@(_ :=> _)      -> normaliseT <$> consume y (mempty :=> x)
   x@(_ :=> _)  -> \case
-    TCon ""          -> Right x
-    
-    y@(TCon _)       -> fuse (mempty :=> y) x
-    
-    TVec []          -> Right x
-    
-    TVec (y:ys)      ->
-      case (fuse x y) of
-        Right z -> fuse z (TVec ys)
-        Left e -> Left e
-        
-    y@(TLoc _ _)     -> fuse (mempty :=> y) x
-    
+    TCon ""          -> pure x    
+    y@(TCon _)       -> fuse (mempty :=> y) x    
+    TVec []          -> pure x    
+    TVec (y:ys)      -> flat $ fuse <$> fuse x y <*> pure (TVec ys)        
+    y@(TLoc _ _)     -> fuse (mempty :=> y) x    
     y@(_ :=> _)      -> normaliseT <$> consume x y
 
 consumes :: T
@@ -325,80 +250,56 @@ consumes :: T
           -> Either TError (T,T)
           -- ^ (Left from Requires, Left from Receives)
 consumes = \case
-  TCon "" -> Right . (,) mempty . id
-
-  TVec [] -> Right . (,) mempty . id
-
+  TCon "" -> pure . (,) mempty 
+  TVec [] -> pure . (,) mempty 
   xx@(TCon x)  -> \case
-    
-    TCon ""     -> Right $ (,) xx mempty
-    
-    yy@(TCon y) ->
-      if x == y
-      then Right $ (,) mempty mempty
-      else Left $ ErrMerge $ mconcat [ "cannot merge ", show xx , " " , show yy ]
-      
-    TVec []     -> Right $ (,) xx mempty
-    
-    TVec (y:ys) ->
-      case consumes xx y of
-        Left e -> Left e         
-        Right (res1, left1) ->
-          case consumes res1 (TVec ys) of
-            Left e -> Left e            
-            Right (res2, left2) -> Right $ (,) res2 (left1 <> left2)
-            
-    yy          -> Right (xx,yy)
+    TCon ""     -> pure $ (,) xx mempty
+    yy@(TCon y) -> if x == y
+                   then pure $ (,) mempty mempty
+                   else Left . ErrMerge . mconcat $ [ "cannot merge ", show xx , " " , show yy ]
+    TVec []     -> pure $ (,) xx mempty
+    TVec (y:ys) -> case consumes xx y of
+                     Left e -> Left e         
+                     Right (res1, left1) ->
+                       case consumes res1 (TVec ys) of
+                         Left e -> Left e            
+                         Right (res2, left2) -> pure (res2, (left1 <> left2))
+    yy          -> pure (xx,yy)
 
   xxx@(TVec (x:xs)) -> \case
-    TCon ""     -> Right $ (,) xxx mempty
-    
-    TVec []     -> Right $ (,) xxx mempty
-    
-    TVec (y:ys) ->
-      case consumes xxx y of
-        Left e -> Left e 
-        Right (res1,left1) ->
-          case consumes res1 (TVec ys) of
-            Left e -> Left e                                
-            Right (res2,left2) -> Right $ (,) res2 (left1 <> left2)
-            
-    y ->
-      case consumes x y of
-        Left e -> Left e 
-        Right (res1,left1) ->
-          case consumes (TVec xs) left1 of
-            Left e -> Left e 
-            Right (res2,left2) -> Right $ (,) (res1 <> res2) (left2)
-
+    TCon ""     -> pure (xxx, mempty)
+    TVec []     -> pure (xxx, mempty)    
+    TVec (y:ys) -> case consumes xxx y of
+                     Left e -> Left e 
+                     Right (res1,left1) ->
+                       case consumes res1 (TVec ys) of
+                         Left e -> Left e                                
+                         Right (res2,left2) -> pure (res2, left1 <> left2)            
+    y           -> case consumes x y of
+                     Left e -> Left e 
+                     Right (res1,left1) ->
+                       case consumes (TVec xs) left1 of
+                         Left e -> Left e 
+                         Right (res2,left2) -> pure (res1 <> res2, left2)
   x@(TLoc l t) -> \case
-    TCon "" -> Right $ (,) x mempty
-    TVec [] -> Right $ (,) x mempty
+    TCon "" -> pure (x,mempty)
+    TVec [] -> pure (x,mempty)
     y@(TLoc l' t') ->
       -- If the location are the same we need to check what happens with the
       -- interaction between the types.
       if l == l'
-      then case  consumes t t' of
+      then case consumes t t' of
           Left e -> Left e                                
           Right (res, left) -> Right $
-            let               
-              left' = if left == mempty || left == TVec []
-                      then mempty
-                      else TLoc l left
-            in
-              (,) res left'
-
+            let left' = if left == mempty || left == TVec []
+                        then mempty
+                        else TLoc l left
+            in (res,left')
         -- Otherwise they don't interact 
-      else Right $ (,) x y
-
+      else pure (x,y)
     -- TLoc doesn't interact with any other type.
-    y       -> Right $ (,) x y
-
-  x@(_ :=> _) ->
-    \y ->
-      if x == y
-      then Right $ (,) mempty mempty
-      else Right $ (,) x y 
+    y         -> pure (x,y)
+  x@(_ :=> _) -> \y -> if x == y then pure (mempty,mempty) else pure (x,y)
 
 -- | Normalise gets rid of empty Types at locations.
 normaliseT :: T -> T
@@ -410,14 +311,14 @@ normaliseT t
     normalisedT = normaliseT' t
     
     normaliseT' = \case
-      TVec []           -> mempty
-      TLoc _ (TVec [])  -> mempty
-      TLoc _ (TCon "")  -> mempty
+      TVec []              -> mempty
+      TLoc _ (TVec [])     -> mempty
+      TLoc _ (TCon "")     -> mempty
       TLoc l (TVec (x:xs)) -> TLoc l x <> (TLoc l $ TVec xs)
-      TVec ([x])        -> normaliseT x
-      t1 :=> t2         -> normaliseT t1 :=> normaliseT t2
-      TVec (x:xs)       -> normaliseT x <> (normaliseT $ TVec xs)
-      x -> x -- Just to be sure it gets through.
+      TVec ([x])           -> normaliseT x
+      t1 :=> t2            -> normaliseT t1 :=> normaliseT t2
+      TVec (x:xs)          -> normaliseT x <> (normaliseT $ TVec xs)
+      x                    -> x -- Just to be sure it gets through.
 
 -- | Consume                                 
 consume :: T -> T -> Either TError T
@@ -428,23 +329,23 @@ consume t1@(tIn :=> tOut) t2@(tIn' :=> tOut') = result
 
    result :: Either TError T
    result = case intermediary of
-     Right (TCon "", TCon "") -> Right $ tIn :=> tOut'
-     Right (TCon "", TVec []) -> Right $ tIn :=> tOut'
-     Right (TCon "", x)       -> Right $ tIn :=> (x <> tOut')
-     Right (TVec [], TCon "") -> Right $ tIn :=> tOut'
-     Right (TVec [], TVec []) -> Right $ tIn :=> tOut'
-     Right (TVec [], x)       -> Right $ tIn :=> (x <> tOut')
-     Right (x       ,TVec []) -> Right $ (tIn<>x) :=> tOut'
-     Right (x       ,TCon "") -> Right $ (tIn<>x) :=> tOut'
-     Right _ -> Left $ ErrMerge $ mconcat $
-                [ "error could not merge "
-                , show t1
-                , " with "
-                , show t2
-                , ". Resulting Type: "
-                , show intermediary
-                ]
-consume _ _ = (throw . ErrWrongT) $ "Cannot consume types which are not of the form (* => *)"
+     Left x                   -> Left x 
+     Right (TCon "", TCon "") -> pure $ tIn :=> tOut'
+     Right (TCon "", TVec []) -> pure $ tIn :=> tOut'
+     Right (TCon "", x)       -> pure $ tIn :=> (x <> tOut')
+     Right (TVec [], TCon "") -> pure $ tIn :=> tOut'
+     Right (TVec [], TVec []) -> pure $ tIn :=> tOut'
+     Right (TVec [], x)       -> pure $ tIn :=> (x <> tOut')
+     Right (x       ,TVec []) -> pure $ (tIn<>x) :=> tOut'
+     Right (x       ,TCon "") -> pure $ (tIn<>x) :=> tOut'
+     Right _                  ->
+       Left . ErrMerge . mconcat $
+       [ "error could not merge ", show t1 , " with ", show t2
+       , ". Resulting Type: ", show intermediary ]
+       
+consume x y = Left . ErrWrongT $
+                "Cannot consume types which are not of the form (* => *)"
+                ++ ". Attempted to consume: " ++ show x ++ " " ++ show y ++ "."
 
 data Operations = Add
                 | Subtract

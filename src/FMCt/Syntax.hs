@@ -54,9 +54,6 @@ instance Semigroup T where
   TVec x        <> y              = TVec $ x ++ [y]
   x             <> TCon ""        = x
   xx@(TCon _)   <> yy@(TCon _)    = TVec [xx,yy]
-  TVec x        <> TVec y         = TVec $ x ++ y
---  xx@(TLoc l x) <> yy@(TLoc l' y) | l == l' = TLoc l $ x <> y
---                                  | otherwise = TVec [xx,yy]
   xx <> yy                        = TVec [xx,yy]
 
 instance Monoid T where
