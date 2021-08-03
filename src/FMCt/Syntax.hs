@@ -59,8 +59,6 @@ instance Semigroup T where
 instance Monoid T where
   mempty = TCon ""
 
-
-
 --------------------------------------------
 -- Location = {out, in, rnd, nd, x, γ, λ} --
 --------------------------------------------

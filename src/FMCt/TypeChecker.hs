@@ -102,22 +102,22 @@ getJType :: Judgement -> T
 getJType (_,_,x) = x
 
 -- | Merge contexts
-mergeCtx :: Context -> Context -> Context
+mergeCtx :: Context -> Context -> Either TError Context
 mergeCtx ox oy = makeSet ox oy
   where
-    makeSet [] x  = x
-    makeSet (t:xs) [] = t : makeSet xs oy 
+    makeSet [] x  = pure x
+    makeSet (t:xs) [] = (t :) <$> makeSet xs oy 
     makeSet t@((term,ty):xs) ((term',ty'):ys)
       = if term /= term' then makeSet t ys
         else if ty == ty' then makeSet xs oy
-             else throw $ ErrOverride $ "Type Conflict between: "
+             else Left . ErrOverride $ "Type Conflict between: "
                   ++ show term ++ ":" ++ show ty ++ " and "
                   ++ show term' ++ ":" ++ show ty'
 
 
 -- | Second step is to add our known variables to the context
 derive :: Term -> Either TError Derivation
-derive p = derive' freshVarTypes (buildContext emptyCtx p) p
+derive p = flat $ derive' freshVarTypes <$> (buildContext emptyCtx p) <*> pure p
   where
     emptyCtx = [("*", TCon [] :=> TCon [])]
     
@@ -196,13 +196,13 @@ derive p = derive' freshVarTypes (buildContext emptyCtx p) p
               nStream = tail stream
               nDeriv = derive' nStream ctx t
 
-          P t lo t' -> Fusion <$> ((,,) <$> nctx <*> pure term <*> ty) <*> dLeft <*> dRight          
+          P t lo t' -> Fusion <$> ((,,) <$> nctx <*> (pure term) <*> ty) <*> dLeft <*> dRight
             where
               nStream = tail stream
               dLeft = derive' nStreamL ctx $ P t lo St
               dRight = derive' nStreamR ctx t'
               ty = either Left id $ fuseTypesD <$> dLeft <*> dRight
-              nctx =  mergeCtx <$> (gCtx <$> dLeft) <*> (gCtx <$> dRight) 
+              nctx =  flat $ mergeCtx <$> (gCtx <$> dLeft) <*> (gCtx <$> dRight) 
               (nStreamL, nStreamR) = splitStream nStream
 
 flat :: Either a (Either a b) -> Either a b
@@ -366,14 +366,14 @@ instance Show Operations where
     If -> "if"
 
 -- | Pre parses the Term for primitives and adds their type to the context.
-buildContext :: Context -> Term -> Context
+buildContext :: Context -> Term -> Either TError Context
 buildContext eCtx =
   let
     opType :: Operations -> T
     opType = \case
       Add      -> TVec [TCon "Int", TCon "Int"] :=> TCon "Int"
       Subtract -> TVec [TCon "Int", TCon "Int"] :=> TCon "Int"
-      If       -> error "Not yet implemented!"
+      If       -> throw $ ErrSimple "Not yet implemented!"
   in \case
     V x St -> do 
       let int    = (readMaybe x) :: Maybe Int
@@ -382,21 +382,22 @@ buildContext eCtx =
       let nCtx   = maybe [] (const [(x,TCon "Int")]) int
       let nCtx'  = maybe [] (const [(x,mempty :=> TCon "Bool")]) bool
       let nCtx'' = maybe [] ((:[]).((,) x) . opType ) op 
-      foldr1 mergeCtx $ eCtx : nCtx : nCtx' : nCtx'' : []
+      foldr (\m p ->  flat $ mergeCtx <$> pure m <*> p) (pure []) $
+        eCtx : nCtx : nCtx' : nCtx'' : [] 
 
     V x t' -> do
       let lCtx = buildContext eCtx (V x St)
       let rCtx = buildContext eCtx t'
-      mergeCtx lCtx rCtx
+      flat $ mergeCtx <$> lCtx <*> rCtx
 
     P t _ t' -> do
       let lCtx = buildContext eCtx t
       let rCtx = buildContext eCtx t'
-      mergeCtx lCtx rCtx      
+      flat $ mergeCtx <$> lCtx <*> rCtx      
 
     B _ _ _ t -> buildContext eCtx t
       
-    St -> eCtx
+    St -> pure eCtx
     
 -- Show Instance
 -- Inspired by previous CW.
