@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC -Wno-unused-top-binds -Wno-missing-signatures#-}
+{-# OPTIONS_GHC -Wno-unused-imports #-}
 module FMCt.Examples
   ( examplesList
   , pEx
@@ -6,7 +7,7 @@ module FMCt.Examples
   )
 where
 import FMCt.Parsing (parseFMC) 
-import FMCt.TypeChecker (derive, fuse, consumes, consume, TError)
+import FMCt.TypeChecker (derive, fuse, consumes, consume, TError, (<.>), getTermType)
 import FMCt.Syntax (T, Type(..), Lo(..), Tm(..))
 import FMCt.Evaluator
 
@@ -33,8 +34,11 @@ ex94   = derive $ parseFMC "[*].<x:(=>)>.*"
 -- Fuse Examples
 
 exFuse1 = (TCon "") `fuse` (TCon "x")
-exFuse2 = (TCon "y" :=> TCon "x") `fuse` (TCon "x" :=> TCon "y")
-exFuse3 = (TCon "y" :=> TVec[TCon "x", TLoc Ho $ TCon ""]) `fuse` (TCon "x" :=> TCon "y")
+exFuse2 = (TCon "x") `fuse` (TCon "")
+exFuse3 = (TCon "y" :=> TCon "x") `fuse` (TCon "x" :=> TCon "y")
+exFuse4 = (TCon "y" :=> TVec[TCon "x", TLoc Ho $ TCon ""]) `fuse` (TCon "x" :=> TCon "y")
+exFuse5 = (mempty :=> TCon "a") `fuse` (mempty :=> TCon "a")
+exFuse6 = (mempty :=> TVec [TCon "Int", TLoc La (TCon "Int")]) `fuse` (TLoc La (TCon "Int") :=> mempty)
 
 --------------------------------------------------------------------------------
 -- consumes examples
@@ -59,6 +63,14 @@ xc7 = consumes (TVec [ TCon "x", TLoc Ho $ TCon "y" ]) (TVec [ TLoc Ho $ TCon "y
 -- | This should saturate, even though the inputs are reversed
 xc8 = consumes (TVec [ TCon "x", TLoc Ho $ TCon "y" ]) (TVec [ TLoc Ho $ TCon "y", TCon "x" ])
 
+xc9 = consumes (TLoc Ho $ TCon "a") (TLoc Ho $ TCon "b")
+
+--------------------------------------------------------------------------------
+-- Fusion Examples
+fEx1 = derive . parseFMC $ "1.2.+"
+
+--------------------------------------------------------------------------------
+-- Cons example
 exCons :: Either TError T
 -- | Simple fusion example.
 exCons = (TCon "a" :=> TCon "b") `consume` (TCon "b" :=> TCon "c")
@@ -78,8 +90,6 @@ pEx = [pEx1, pEx2, pEx3, pEx4, pEx5]
     pEx3 =  "x . y . [*]. [*] . <x:(a(int,bool) => (int))>"
     pEx4 =  "x . y . [*]. [*] . <x:(a(a) => (a) => (b))>"  -- higher order type 
     pEx5 =  "x . y . [*]. [*] . <x:(a(ab,b) => (int)), (b(int))>"
-
-
 
 --------------------------------------------------------------------------------
 -- Some simple Evaluator examples
