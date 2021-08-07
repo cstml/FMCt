@@ -1,10 +1,8 @@
 -- | Module is made just for Re-Exporting basic functions.
-module FMCt
-  (  module X  )
-where
+module FMCt (module X) where
 
-import FMCt.Parsing     as X ( parseFMC, parseType, parseFMCtoString )
-import FMCt.Evaluator   as X ( eval, eval1, eval1', evalToString ) 
-import FMCt.Examples    as X ( examplesList )
-import FMCt.TypeChecker as X ( typeCheck, derive, typeCheckP)
-import FMCt.Pretty      as X ( printStack, printOutput)
+import FMCt.Evaluator as X (eval, eval1, eval1', evalToString)
+import FMCt.Examples as X (examplesList)
+import FMCt.Parsing as X (parseFMC, parseFMCtoString, parseType)
+import FMCt.Pretty as X (printOutput, printStack)
+import FMCt.TypeChecker as X (derive, typeCheck, typeCheckP)

@@ -1,21 +1,20 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module FMCt.Evaluator
-    ( Binds,
-      Memory,
-      State,
-      emptyMem,
-      eval,
-      eval1,
-      eval1',
-      evalToString,
-      tryEval1,
-    )
-where
+module FMCt.Evaluator (
+    Binds,
+    Memory,
+    State,
+    emptyMem,
+    eval,
+    eval1,
+    eval1',
+    evalToString,
+    tryEval1,
+) where
 
 import Control.Exception (IOException, try)
 import qualified Control.Exception as E
-import Data.Map ((!?), Map)
+import Data.Map (Map, (!?))
 import qualified Data.Map as M
 import FMCt.Syntax (Lo (..), Tm (..), Vv)
 import FMCt.TypeChecker (typeCheck)
@@ -51,11 +50,11 @@ pop :: Int -> Lo -> State -> State
 pop n l st@(m, b)
     | n < 1 = st
     | otherwise = pop (n - 1) l nSt
-    where
-        nSt = case m !? l of
-            Just [] -> error "Empty Stack"
-            Nothing -> error "Empty Stack"
-            Just (x : xs) -> push x Ho (M.insert l xs m, b)
+  where
+    nSt = case m !? l of
+        Just [] -> error "Empty Stack"
+        Nothing -> error "Empty Stack"
+        Just (x : xs) -> push x Ho (M.insert l xs m, b)
 
 -- | Hacky way to add numbers - TODO: refactor
 adds :: String -> String -> String
@@ -66,28 +65,28 @@ adds x y = case (readMaybe x :: Maybe Int, readMaybe y :: Maybe Int) of
 -- | Hacky way to add numbers - TODO: refactor
 add :: State -> State
 add (m, b) = t
-    where
-        t = case m !? Ho of
-            Nothing -> error "Not enough numbers to add! Empty Stack!"
-            Just [] -> error "Not enough numbers to add! Empty Stack!"
-            Just [_] -> error "Not enough numbers to add!"
-            Just (x : y : xs) -> case (x, y) of
-                (V x' _, V y' _) -> push (V (x' `adds` y') St) Ho (M.insert Ho xs m, b)
-                (_, _) -> error $ "Cannot add these terms"
+  where
+    t = case m !? Ho of
+        Nothing -> error "Not enough numbers to add! Empty Stack!"
+        Just [] -> error "Not enough numbers to add! Empty Stack!"
+        Just [_] -> error "Not enough numbers to add!"
+        Just (x : y : xs) -> case (x, y) of
+            (V x' _, V y' _) -> push (V (x' `adds` y') St) Ho (M.insert Ho xs m, b)
+            (_, _) -> error $ "Cannot add these terms"
 
 evaluate :: Tm -> State -> State
 evaluate (V "+" c) m = evaluate c $ add (pop 2 Ho m)
 evaluate St m = m -- does nothing
 evaluate (V x c) st@(_, b) = evaluate c nt -- places value @ lambda pos
-    where
-        nt =
-            if unbound
-                then push (V x St) Ho st
-                else push (head et) Ho st
-        et =
-            maybe (error "This should have never happened - pushing unbound") id $
-                b !? x
-        unbound = maybe False (const True) $ b !? x
+  where
+    nt =
+        if unbound
+            then push (V x St) Ho st
+            else push (head et) Ho st
+    et =
+        maybe (error "This should have never happened - pushing unbound") id $
+            b !? x
+    unbound = maybe False (const True) $ b !? x
 evaluate (B v _ lo tm) m = evaluate tm (bind v lo m) -- pops and binds the term
 evaluate (P te l t') st = evaluate t' (push te l st) -- pushes the term
 

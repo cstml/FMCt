@@ -31,7 +31,7 @@ haddock-watch:
 
 # Reformat all the code according to fourmolu.yaml
 reformat: 
-	./scripts/reformat.sh
+	~/.local/bin/fourmolu --mode inplace $$(git ls-tree -r --full-tree --name-only HEAD | grep -e ".*\.hs")
 
 # Make the documentation
 haddock-generate:
