@@ -28,7 +28,6 @@ common common-specs
                         parsec,
                         text,
                         transformers,
-                        deepseq
                         
   default-extensions:   OverloadedStrings,
                         LambdaCase
@@ -36,17 +35,20 @@ common common-specs
   default-language:     Haskell2010
                         
   hs-source-dirs:       src
-                        
+
+  other-modules:
+    FMCt.Evaluator
+    FMCt.Examples
+    FMCt.Parsing
+    FMCt.Pretty
+    FMCt.Syntax
+    FMCt.TypeChecker
+        
 library
   import:               common-specs
                         
   exposed-modules:      FMCt
-                        FMCt.Evaluator
-                        FMCt.Examples
-                        FMCt.Parsing
-                        FMCt.Pretty
-                        FMCt.Syntax
-                        FMCt.TypeChecker
+                        
                         
 executable FMCt         
   import:               common-specs
@@ -54,35 +56,37 @@ executable FMCt
   hs-source-dirs:       app
   
   main-is:              Main.hs
+                                                
+executable FMCt-web
+  import:               common-specs  
 
-  other-modules:        FMCt
-                        FMCt.Evaluator
-                        FMCt.Examples
-                        FMCt.Parsing
-                        FMCt.Pretty
-                        FMCt.Syntax
-                        FMCt.TypeChecker
-                        FMCt.Examples
-                        
--- test-suite Test         
--- --  import:               common-specs
+  main-is:              Main.hs
   
---   hs-source-dirs:       test
-
---   main-is:              Main.hs
-
---   type:                 exitcode-stdio-1.0
-
---   other-modules:        TestGenerators
-
---   build-depends:        base,
---                         containers,
---                         mtl,
---                         parsec,
---                         text,
---                         QuickCheck,
---                         tasty,
---                         FMCt
+  hs-source-dirs:       webApp
+--                      , src
+  other-modules:
+    FMCt.Web
+    FMCt.Web.Components.Brick
+    FMCt.Web.Components.MainPage
+    FMCt.Web.Components.RegularPage
+    FMCt.Web.Helpers.Heroku
+    FMCt.Web.MainWebsite
+    FMCt.Web.Pages.Derive
+    FMCt.Web.Pages.Evaluator
+    FMCt.Web.Pages.Root
+    FMCt.Web.Style.BootStrap
+    FMCt.Web.Style.MainStyle
+    FMCt.Web.Style.StdStylingHeader
+                      
+  build-depends:        base 
+                      , scotty
+                      , text
+                      , clay
+                      , lucid
+                      , aeson
+                      , FMCt
+                      , wai-extra
+                      , http-types
 
 
 

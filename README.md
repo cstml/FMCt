@@ -32,3 +32,22 @@ To build there are two ways, depending on which you prefer:
 
 To play with examples, have a look in the source files as there are examples
 sprinkled around. Especially in `src-exe/Examples.hs`.
+
+---
+
+# FMCt-web
+
+The FMCt-web is a web interface for the FMCt where people can try out the
+language and its type checker without having to install anything.
+
+## TO-DO
+
+As you can probably tell the whole thing is a bit of a WIP, but nevertheless it
+is up and working. There are still many things to do, but I am mostly focusing
+on getting the Type-Checker done. I will update this as I go along - and
+hopefully it will be in a good enough state.
+
+- [ ] make it pretty 
+  - [ ] make it less ugly 
+- [ ] make it more of a REPL
+
