@@ -1,4 +1,5 @@
-.PHONY: clean reformat build lint-watch compile-watch haddock-generate repl-start
+.PHONY: clean reformat build lint-watch compile-watch haddock-generate \
+				repl-start documentation 
 
 # Run the main executable
 run: build
@@ -19,21 +20,22 @@ repl-start:
 
 # Start a lint watcher 
 lint-watch:
-	ls **/*.hs | entr hlint .
+	ls **/* | entr hlint . 
+
+lint:
+	hlint .  
 
 # Start a compilation watcher 
 compile-watch:
-	nix-shell -p ghcid --command 'ghcid --command "cabal repl lib:FMCt"'
+	ghcid --command 'ghcid --command "cabal repl lib:FMCt"'
 
 # Make the documentation and automatically refresh it 
 haddock-watch:
-	ls **/*.hs | entr cabal new-haddock --haddock-all
+	ls **/* | entr cabal v2-haddock executables
 
 # Reformat all the code according to fourmolu.yaml
 reformat: 
 	~/.local/bin/fourmolu --mode inplace $$(git ls-tree -r --full-tree --name-only HEAD | grep -e ".*\.hs")
 
-# Make the documentation
-haddock-generate:
-	cabal new-haddock && \
-  firefox ./dist-newstyle/build/x86_64-linux/ghc-8.6.5/FMCt-0.1.0.0/doc/html/FMCt/index.html
+documentation:
+	nix-shell --command "cabal v2-haddock executables"
