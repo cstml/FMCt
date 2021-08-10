@@ -1,4 +1,1 @@
-module FMCt.Web.Pages.MainPage
-  ( page )
-where
-
+module FMCt.Web.Pages.MainPage (page) where

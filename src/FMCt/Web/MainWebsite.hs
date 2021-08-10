@@ -1,24 +1,22 @@
-{-#LANGUAGE ScopedTypeVariables#-}
+{-# LANGUAGE ScopedTypeVariables #-}
+
 module FMCt.Web.MainWebsite (mainWebsite) where
 
-import FMCt.Web.Style.MainStyle (mainStylePage)
-import FMCt.Web.Helpers.Heroku (herokuGetPort)
-import qualified Web.Scotty as S (scotty, get, param, html)
-import FMCt.Web.Components.MainPage (mainPage)
-import FMCt.Web.Pages.Evaluator (pEvaluator)
-import FMCt.Web.Pages.Root (pRoot)
-import FMCt.Web.Pages.Derive  (pDerive)
-import Lucid as LU
-
-import Web.Scotty.Trans
-import Network.Wai.Middleware.RequestLogger
-import Network.HTTP.Types
+import Control.Exception
 import Control.Monad.IO.Class
 import Data.String (fromString)
-import FMCt.TypeChecker ( TError(..) )
-
-import Control.Exception
-
+import FMCt.TypeChecker (TError (..))
+import FMCt.Web.Components.MainPage (mainPage)
+import FMCt.Web.Helpers.Heroku (herokuGetPort)
+import FMCt.Web.Pages.Derive (pDerive)
+import FMCt.Web.Pages.Evaluator (pEvaluator)
+import FMCt.Web.Pages.Root (pRoot)
+import FMCt.Web.Style.MainStyle (mainStylePage)
+import Lucid as LU
+import Network.HTTP.Types
+import Network.Wai.Middleware.RequestLogger
+import qualified Web.Scotty as S (get, html, param, scotty)
+import Web.Scotty.Trans
 
 -- Define a custom exception type.
 data Except = Forbidden | NotFound Int | StringEx String | Err SomeException | Err' TError
@@ -32,7 +30,7 @@ instance ScottyError Except where
 
 -- Handler for uncaught exceptions.
 handleEx :: Monad m => Except -> ActionT Except m ()
-handleEx Forbidden    = do
+handleEx Forbidden = do
     status status403
     html "<h1>Scotty Says No</h1>"
 handleEx (NotFound i) = do
@@ -48,34 +46,33 @@ handleEx (Err' e) = do
     status status500
     html $ fromString $ "<h1>" ++ show e ++ "</h1>"
 
--- | Start serving the website. 
+-- | Start serving the website.
 mainWebsite :: IO ()
 mainWebsite = do
-     
-     let rMainPage = get "/" $ (html . LU.renderText) pRoot
-     
-     -- Parse is where the term gets Parsed and Evaluated.
-     let rParse = get "/parse" $ do
-           term <- param "term"
-           (html . LU.renderText . pEvaluator) term          
+    let rMainPage = get "/" $ (html . LU.renderText) pRoot
 
-     -- Derivation Page.
-     let rDerivationPage = get "/derive" $ do
-           term <- param "term"
-           (html . LU.renderText . pDerive) term
+    -- Parse is where the term gets Parsed and Evaluated.
+    let rParse = get "/parse" $ do
+            term <- param "term"
+            (html . LU.renderText . pEvaluator) term
 
-     -- Styling.
-     let css  = get "/style.css" $ html mainStylePage
+    -- Derivation Page.
+    let rDerivationPage = get "/derive" $ do
+            term <- param "term"
+            (html . LU.renderText . pDerive) term
 
-     port <- herokuGetPort -- Fetch the port.
+    -- Styling.
+    let css = get "/style.css" $ html mainStylePage
 
-     -- Routes that will be served:
-     scottyT port id $ do 
-       defaultHandler handleEx
-       rMainPage
-       rParse
-       css
-       rDerivationPage     
+    port <- herokuGetPort -- Fetch the port.
+
+    -- Routes that will be served:
+    scottyT port id $ do
+        defaultHandler handleEx
+        rMainPage
+        rParse
+        css
+        rDerivationPage
 
 bla :: String -> IO String
-bla = return 
+bla = return

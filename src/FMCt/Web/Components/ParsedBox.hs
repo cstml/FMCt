@@ -1,3 +1,1 @@
-module FMCt.Web.Components.ParsedBox
-  (parsedBox)
-  where
+module FMCt.Web.Components.ParsedBox (parsedBox) where
