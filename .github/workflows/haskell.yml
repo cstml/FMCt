@@ -2,9 +2,9 @@ name: Haskell CI
 
 on:
   push:
-    branches: [ publicDev ]
+    branches: [ main, staging, publicDev ]
   pull_request:
-    branches: [ publicDev ]
+    branches: [ main, staging, publicDev ]
 
 jobs:
   build:
