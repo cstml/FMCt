@@ -3,8 +3,8 @@
 
 module FMCt.Examples (
     examplesList,
-    pEx,
-    runPEx,
+--    pEx,
+--    runPEx,
 ) where
 
 import FMCt.Evaluator
@@ -17,7 +17,7 @@ examplesList = [term1]
   where
     term1 :: String
     term1 = "1.2.3.γ<x:(=>^(Int))>.+.x.+"
-
+{-
 ex04 = derive $ parseFMC "*"
 
 ex14 = derive $ parseFMC "x.y.*"
@@ -145,3 +145,4 @@ ex8 =
                     V "x" $ -- x
                         V "+" St -- +
         )
+-}

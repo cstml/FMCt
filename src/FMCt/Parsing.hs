@@ -37,7 +37,7 @@ parseType x = either (E.throw . PTypeErr . show) id $ parse termType "TypeParser
 
 -- | Term Parser.
 term :: Parser Tm
-term = choice $ try <$> [variable, application, abstraction, star]
+term = choice $ try <$> [variable, letP, application, letAbstraction, abstraction, star]
 
 -- | Abstraction Parser.
 --
@@ -49,7 +49,22 @@ abstraction = do
     v <- char '<' >> spaces >> many1 alpha <> many alphaNumeric
     t <- spaces >> char ':' >> termType <* spaces <* char '>'
     t2 <- spaces >> sepparator >> term
-    return $ B v t l t2
+    return $ B v l t2
+
+letAbstraction :: Parser Tm
+letAbstraction = do
+    l <- location
+    v <- char '<' >> spaces >> many1 alpha <> many alphaNumeric
+    t <- spaces >> char ':' >> termType <* spaces <* char '>'
+    t2 <- spaces >> sepparator >> term
+    return $ L v t $ B v l t2
+
+letP :: Parser Tm
+letP = do
+    v <- char '{' >> spaces >> many1 alpha <> many alphaNumeric
+    t <- spaces >> char ':' >> termType <* spaces <* char '}'
+    t2 <- spaces >> sepparator >> term
+    return $ L v t t2
 
 application :: Parser Tm
 application = do

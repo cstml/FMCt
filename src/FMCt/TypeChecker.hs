@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE TupleSections #-}
 {-# OPTIONS_GHC -Wno-unused-imports #-}
 
 module FMCt.TypeChecker (
@@ -69,11 +70,12 @@ type Context = [(Vv, T)]
 type Judgement = (Context, Term, T)
 
 data Derivation
-    = Star !Judgement
-    | Variable !Judgement
-    | Abstraction !Judgement !Derivation
-    | Application !Judgement !Derivation
-    | Fusion !Judgement !Derivation !Derivation
+    = Star Judgement
+    | Variable Judgement
+    | Let         Judgement Derivation
+    | Abstraction Judgement Derivation
+    | Application Judgement Derivation
+    | Fusion Judgement Derivation Derivation
 
 type Term = Tm
 
@@ -193,6 +195,7 @@ derive p = flat $ derive' freshVarTypes <$> (buildContext emptyCtx p) <*> pure p
         Abstraction (_, _, t) _ -> t
         Application (_, _, t) _ -> t
         Fusion (_, _, t) _ _ -> t
+        Let (_,_,t) _ -> t
 
     derive' :: [T] -> Context -> Term -> Either TError Derivation
     derive' stream ctx term =
@@ -210,21 +213,35 @@ derive p = flat $ derive' freshVarTypes <$> (buildContext emptyCtx p) <*> pure p
                 ty = flat $ fuseTypesD <$> dLeft <*> dRight
                 nStream = tail stream
                 (nStreamL, nStreamR) = splitStream nStream
-            B x ty lo St -> Abstraction (ctx', term, tT) <$> nDeriv
+            B x lo St -> Abstraction <$> ((,,) <$> ctx' <*> pure term <*> tT) <*> flat nDeriv
               where
-                nDeriv = derive' nStream ctx' (V x St)
-                bT = normaliseT $ ty
-                tT = TLoc lo bT :=> mempty
-                ctx' = (x, bT) : ctx
+                nDeriv = derive' nStream <$> ctx' <*> pure (V x St)
+                ty = getType term ctx
+                bT = normaliseT <$> ty
+                tT = (\y -> TLoc lo y :=> mempty) <$> bT
+                ctx' = (\y -> (x, y) : ctx) <$> bT
                 nStream = tail stream
-            B x ty lo nT -> Fusion <$> ((,,) ctx' term <$> ty') <*> dLeft <*> dRight
+            B x lo nT -> Fusion <$> flat ((,,) <$> nctx <*> pure term <*> ty') <*> dLeft <*> dRight
               where
-                ctx' = (x, ty) : ctx
+                nctx = flat $ mergeCtx <$> (gCtx <$> dLeft) <*> (gCtx <$> dRight)
                 nStream = tail stream
                 (nStreamL, nStreamR) = splitStream nStream
-                dLeft = derive' nStreamR ctx' nT
+                dLeft = derive' nStreamR <$> nctx <*> pure nT
                 dRight = derive' nStreamL ctx (B x ty lo St)
-                ty' = flat $ fuseTypesD <$> dLeft <*> dRight
+                ty' = flat $ fuseTypesD <$> dLeft <*> dRight                
+            L b t St -> Let (ctx',term,ty) <$> nDeriv
+              where
+                ctx' = (b,t) : ctx
+                ty = mempty :=> mempty
+                nDeriv = derive' stream ctx' St
+            L b t tm -> Fusion <$> ((,,) <$> nctx <*> (pure term) <*> ty) <*> dLeft <*> dRight
+              where
+                nStream = tail stream
+                dLeft  = derive' nStreamL ctx $ L b t St
+                dRight = derive' nStreamR ctx tm
+                ty = flat $ fuseTypesD <$> dLeft <*> dRight
+                nctx = flat $ mergeCtx <$> (gCtx <$> dLeft) <*> (gCtx <$> dRight)
+                (nStreamL, nStreamR) = splitStream nStream                
             P t lo St -> Application <$> ((,,) ctx term <$> ty) <*> nDeriv
               where
                 uty = getUpperType <$> nDeriv
@@ -236,9 +253,9 @@ derive p = flat $ derive' freshVarTypes <$> (buildContext emptyCtx p) <*> pure p
                 nStream = tail stream
                 dLeft = derive' nStreamL ctx $ P t lo St
                 dRight = derive' nStreamR ctx nT
-                ty = either Left id $ fuseTypesD <$> dLeft <*> dRight
+                ty = flat $ fuseTypesD <$> dLeft <*> dRight
                 nctx = flat $ mergeCtx <$> (gCtx <$> dLeft) <*> (gCtx <$> dRight)
-                (nStreamL, nStreamR) = splitStream nStream
+                (nStreamL, nStreamR) = splitStream nStream                
 
 flat :: Either a (Either a b) -> Either a b
 flat = either Left id
@@ -509,7 +526,7 @@ buildContext eCtx =
                 let lCtx = buildContext eCtx t
                 let rCtx = buildContext eCtx t'
                 flat $ mergeCtx <$> lCtx <*> rCtx
-            B _ _ _ t -> buildContext eCtx t
+            B _ _ t -> buildContext eCtx t
             St -> pure eCtx
 
 -- Show Instance

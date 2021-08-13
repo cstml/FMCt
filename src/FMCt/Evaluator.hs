@@ -87,7 +87,7 @@ evaluate (V x c) st@(_, b) = evaluate c nt -- places value @ lambda pos
         maybe (error "This should have never happened - pushing unbound") id $
             b !? x
     unbound = maybe False (const True) $ b !? x
-evaluate (B v _ lo tm) m = evaluate tm (bind v lo m) -- pops and binds the term
+evaluate (B v lo tm) m = evaluate tm (bind v lo m) -- pops and binds the term
 evaluate (P te l t') st = evaluate t' (push te l st) -- pushes the term
 
 -- | The Empty FMCt Evaluator state.

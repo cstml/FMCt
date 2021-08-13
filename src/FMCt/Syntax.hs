@@ -28,10 +28,12 @@ data Tm
       V Vv Tm
     | -- | Application or Push: [M]a.N
       P Tm Lo Tm
-    | -- | Abstraction or Pop:  a\<x:t\>.N
-      B Vv T Lo Tm
+    | -- | Abstraction or Pop:  a\<x\>.N
+      B Vv Lo Tm
     | -- | Star
       St
+    | -- | Let : {a:t}
+      L Vv T Tm 
     deriving (Eq, Ord)
 
 --------------------------------------------------------------------------
@@ -45,8 +47,9 @@ type T = Type String
 
 -- | Type data structure
 data Type a
-    = -- | Type Constant.
-      --            | TVar a             -- ^ Type Variable - (like haskell forall - WIP)
+    = -- | Type Variable - (like haskell forall - WIP)
+      TVar a             
+    | -- | Type Constant.
       TCon a
     | -- | Type Vector
       TVec [Type a]
@@ -110,13 +113,17 @@ instance Show (Type String) where
     show x = case x of
         TCon "" -> " "
         TCon y -> y
+        TVar y -> y
         TVec _x -> mconcat ["(", init $ mconcat $ (flip (++) ",") <$> show <$> _x, ")"]
-        TLoc l y -> show l ++ "(" ++ show y ++ ")"
+        TLoc l y -> case y of
+--          _ :=> _ -> show l ++ show y
+          _ -> show l ++ "(" ++ show y ++ ")"
         t1 :=> t2 -> mconcat ["(", show t1, " => ", show t2, ")"]
 
 instance Show Tm where
     show x = case x of
-        B v t l t' -> show l ++ "<" ++ v ++ ":" ++ show t ++ ">" ++ "." ++ show t'
+        B v l t' -> show l ++ "<" ++ v ++ ">" ++ "." ++ show t'
         P t l t' -> "[" ++ show t ++ "]" ++ show l ++ "." ++ show t'
         V v t -> v ++ "." ++ show t -- untyped version
         St -> "*"
+        L b t tm -> "{" ++ b ++ ":" ++ show t ++ "}." ++ show tm
