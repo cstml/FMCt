@@ -125,7 +125,7 @@ constantType = do
 locationType :: Parser T
 locationType = do
     l <- location
-    t <- between (spaces >> char '(') (spaces >> char ')') (constantType <|> termType <|> constantType)
+    t <- between (spaces >> char '(') (spaces >> char ')') termType 
     return $ TLoc l t
 
 -- | Vector Types are a list of types.
@@ -162,6 +162,11 @@ higherType :: Parser T
 higherType = do
     ts <- between (char '(') (char ')') (termType `sepBy1` (spaces >> string "=>" >> spaces))
     return $ foldr1 (:=>) ts
+
+-- flatHigherType :: Parser T
+-- flatHigherType = do
+--     ts <- termType `sepBy1` (spaces >> string "=>" >> spaces)
+--     return $ foldr1 (:=>) ts
 
 termType :: Parser T
 termType = try higherType <|> try vectorType <|> try locationType <|> try constantType <|> emptyType
