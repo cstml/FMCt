@@ -5,6 +5,7 @@
 
 module FMCt.TypeChecker (
     TError (..),
+    Operations (..),
     freshVarTypes,
     typeCheck,
     normaliseT,
@@ -16,8 +17,8 @@ module FMCt.TypeChecker (
     Derivation(..),
     (<.>),
     getTermType,
-    splitStream
-    ,pShow
+    splitStream,
+    buildContext,    
 ) where
 
 
@@ -27,22 +28,17 @@ import Control.Applicative
 import Control.Exception
 import FMCt.Parsing
 import FMCt.Syntax
+import FMCt.Aux.Pretty
 import Text.Read (readMaybe)
 
 -- | Typechecking Errors.
 data TError
-    = -- | A Simple, Generic Error.
-      ErrSimple String
-    | -- | An undefined Type.
-      ErrUndefT String
-    | -- | A merge Error.
-      ErrMerge String
-    | -- | Attempting to override declared variable type.
-      ErrOverride String
-    | -- | Attemptig to use the wrong types.
-      ErrWrongT String
-    | -- | Not a binder.
-      ErrNotBinder String
+    = ErrSimple String -- ^ A Simple, Generic Error.
+    | ErrUndefT String -- ^ An undefined Type.
+    | ErrMerge String  -- ^ A merge Error.
+    | ErrOverride String -- ^ Attempting to override declared variable type.
+    | ErrWrongT String -- ^ Attemptig to use the wrong types.
+    | ErrNotBinder String -- | Not a binder.
     | -- | Err arrising at consume level.
       ErrConsume String
     | -- | Err arrising at fuse level.
@@ -501,7 +497,11 @@ buildContext eCtx =
         opType = \case
             Add -> TVec [i, i] :=> i
             Subtract -> TVec [i, i] :=> i
-            If -> throw $ ErrSimple "Not yet implemented!"
+            If -> TVec[ b
+                      , TLoc (Lo "if") $ TVar "ifVar1"
+                      , TLoc (Lo "if") $ TVar "ifVar1"
+                      ] :=>
+                  TVec [ TVar "ifVar1"]
      in \case
             V x St -> do
                 let rInt = (readMaybe x) :: Maybe Int
@@ -523,10 +523,6 @@ buildContext eCtx =
             B _ _ _ t -> buildContext eCtx t
             St -> pure eCtx
 
-
-class Pretty a where
-  pShow :: a -> String
-
 -- Show Instance
 -- Inspired by previous CW.
 instance Pretty Derivation where
@@ -534,7 +530,7 @@ instance Pretty Derivation where
       where
         (_, _, _, strs) = showD d
         showT :: T -> String
-        showT = show
+        showT = pShow
         showC :: Context -> String
         showC =
             let sCtx (x, t) = show x ++ ":" ++ showT t ++ ", "

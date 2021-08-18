@@ -3,12 +3,13 @@
 
 module FMCt.TypeChecker2 where 
 
-import qualified Control.Lens as L
-import Control.Lens (view,_1,makePrisms)
+--import qualified Control.Lens as L
+--import Control.Lens (view,_1,makePrisms)
 import FMCt.Syntax
 import FMCt.Parsing
-import FMCt.TypeChecker (Derivation(..), freshVarTypes, splitStream, TError(..), pShow, normaliseT)
+import FMCt.TypeChecker (Derivation(..), freshVarTypes, splitStream, TError(..), normaliseT, buildContext, Operations(..))
 import Control.Monad
+import FMCt.Aux.Pretty (pShow,Pretty)
 -- data Derivation
 --     = Star !Judgement
 --     | Variable !Judgement
@@ -36,29 +37,26 @@ type Judgement = (Context, Term, T)
 
 type Term = Tm
 
-makePrisms ''Tm
-makePrisms ''Derivation
-
-
 emptyCx :: Context
 emptyCx = [("*",mempty :=> mempty)]
 
 derive1 :: Term -> Derivation
-derive1 = (derive1' freshVarTypes [])
+derive1 term = derive1' freshVarTypes preBuildCtx term
   where
+    preBuildCtx = either (const emptyCx) id $ buildContext emptyCx term
     
     derive1' :: [T] -> Context -> Term -> Derivation
     derive1' stream exCx = \case
 
-      St -> Star (emptyCx, St, ty)
+      St -> Star (exCx, St, ty)
         where
           ty = either (error.show) id $ getType St exCx 
       
-      xx@(V x St) -> Variable ((x,ty):emptyCx, xx, ty)
-        where
+      xx@(V x St) -> Variable (exCx, xx, ty)
+        where          
           ty = either (error.show) id $ getType xx exCx 
             
-      xx@(V bi tm) -> Fusion (mCx, xx, ty) derivL derivR
+      xx@(V bi tm) -> applyTSubsD tCasts $ Fusion (mCx, xx, ty) derivL derivR
         where
 
           (lStr,rStr) = splitStream $ tail stream
@@ -71,7 +69,7 @@ derive1 = (derive1' freshVarTypes [])
           tL = getDerivationT derivL
           tR = getDerivationT derivR
           
-          (_,ty) = fuse tL tR
+          (tCasts,ty) = fuse tL tR
 
       xx@(B bi bTy lo St) -> Abstraction (aboveCx, xx, ty) deriv
         where
@@ -80,9 +78,8 @@ derive1 = (derive1' freshVarTypes [])
           deriv = derive1' (tail stream) nCx (V bi St)
           aboveCx = getContext deriv
             
-      xx@(B bi bTy lo tm) -> Fusion (mCx, xx, ty) derivL derivR
+      xx@(B bi bTy lo tm) -> applyTSubsD tCasts $ Fusion (mCx, xx, ty) derivL derivR
         where
---          ty = head stream
           (lStr,rStr) = splitStream $ tail stream
           derivL = (derive1' lStr exCx (B bi bTy lo St))
           lCx = getContext derivL
@@ -93,7 +90,7 @@ derive1 = (derive1' freshVarTypes [])
           tL = getDerivationT derivL
           tR = getDerivationT derivR
           
-          (_,ty) = fuse tL tR
+          (tCasts,ty) = fuse tL tR
 
       xx@(P ptm lo St) -> Application (aboveCx, xx, ty) deriv 
         where
@@ -102,7 +99,7 @@ derive1 = (derive1' freshVarTypes [])
           abvT = getDerivationT  deriv
           aboveCx = getContext deriv
 
-      xx@(P ptm lo tm) -> Fusion (mCx, xx, ty) derivL derivR
+      xx@(P ptm lo tm) -> applyTSubsD tCasts $ Fusion (mCx, xx, ty) derivL derivR
         where
 --          ty = head stream
           (lStr,rStr) = splitStream $ tail stream
@@ -115,7 +112,7 @@ derive1 = (derive1' freshVarTypes [])
           tL = getDerivationT derivL
           tR = getDerivationT derivR
           
-          (_,ty) = fuse tL tR
+          (tCasts,ty) = fuse tL tR
 
 testD1 :: Term -> IO ()
 testD1 = putStrLn . pShow . derive1
@@ -128,11 +125,13 @@ consume :: [TSubs]       -- ^ Substitutions to be made in both types.
         -> ([TSubs],T,T) -- ^ The new list of substitutions, remaining from the consuming, remaining from the consumed.
 consume exSubs x y =
   let
-    x' = applyTSub exSubs x -- we use the already subtituted form when consuming
-    y' = applyTSub exSubs y -- for both terms
+    x' = normaliseT $ applyTSub  exSubs x -- we use the already subtituted form when consuming
+    y' = normaliseT $ applyTSub  exSubs y -- for both terms
   in
     case x' of      
-      TEmp -> (exSubs,mempty,y')    -- mempty doesn't change anything
+      TEmp -> case y' of
+        TVar _ -> ((y',x'):exSubs,mempty,mempty)
+        _ ->  (exSubs,mempty,y') -- mempty doesn't change anything else 
       
       TVec [] -> (exSubs,mempty,y') -- synonym for mempty
       
@@ -152,7 +151,7 @@ consume exSubs x y =
         TLoc _ _ -> (exSubs,x',y')
 
       TVar _ -> case y' of
-        TEmp -> (exSubs,x',mempty)
+        TEmp -> ((x',y'):exSubs,mempty,mempty)
         TVec [] -> (exSubs,x',mempty)
         -- if consumed by anything, the Variable gets cast and changes all the
         -- other appearances of itself.
@@ -192,16 +191,18 @@ consume exSubs x y =
           in
             (finalSubs, finalX', interYY' <> finalYY')
         iy' :=> oy' ->
-          if x' == y'
+          if normaliseT x' == normaliseT y'
              then (exSubs, mempty, mempty)
              else let
                (intSubs, leftIX', leftIY') =  consume exSubs ix' iy'
                (finalSubs, rightIX', rightIY') =  consume intSubs ox' oy'
                (finalL,finalR) = (normaliseT $ leftIX' <> leftIY', normaliseT $ rightIX' <> rightIY')
-               res = (finalSubs,mempty,mempty)
+               res = (finalSubs, finalL, finalR)
+--               res = (finalSubs,mempty,mempty)
                in case res of
                     (_,TEmp,TEmp) -> res
-                    _ -> error $ show x' ++ " cannot consume " ++ show y' ++ "fusion result: " ++ show res
+                    
+                    _ -> error $ show x' ++ " cannot consume " ++ show y' ++ " fusion result: " ++ show res
         
       TVec (xx':xxs') -> case y' of
         TEmp -> (exSubs,x',mempty)
@@ -253,7 +254,7 @@ fuse = \case
   x@(xi :=> xo) -> \case
     y@(yi :=> yo) ->
       let
-        (subs, remainX, remainY) = consume [] yi xo
+        (subs, remainY, remainX) = consume [] yi xo
         res = (subs, normaliseT remainX, normaliseT remainY)
       in
         case res of
@@ -266,7 +267,9 @@ fuse = \case
               aux :: Monoid a => (a -> a -> Bool) -> [a] -> (a,Bool)
               aux f []  = (mempty,True)
               aux f (z:zs)  = (z, (f z (fst $ aux f zs)) && (snd $ aux f zs))
-    y -> error $ "cannot fuse " ++ show x ++ " and " ++ show y
+    y@(TVar _) ->
+      ([(y,x)],mempty)
+    y -> error $ "cannot fuse " ++ show x ++ " and " ++ show y ++ ". Wrong type Types - Use Function Types"
   x -> \y -> error $ "cannot fuse " ++ show x ++ " and " ++ show y
       
 applyTSub :: [TSubs] -> T -> T
@@ -388,7 +391,12 @@ applySubsD subs = \case
   Abstraction (cx,tm,ty) de -> Abstraction (makeSet $ applySubsCx subs cx, tm ,applySubsT subs ty) (applySubsD subs de)
   Application (cx,tm,ty) de -> Application (makeSet $ applySubsCx subs cx, tm ,applySubsT subs ty) (applySubsD subs de)
   Fusion (cx,tm,ty) dL dR -> Fusion (makeSet $ applySubsCx subs cx, tm ,applySubsT subs ty) (applySubsD subs dL) (applySubsD subs dR)
- 
+
+applyTSubsD :: [TSubs] -> Derivation -> Derivation
+applyTSubsD subs = \case 
+  Fusion (cx,tm,ty) dL dR -> Fusion ( (\(x,y)-> (x,applyTSub subs y)) <$> cx, tm , applyTSub subs ty) dL dR
+  _ -> error "You are not allowed to cast here!"
+  
 allCtx :: Derivation -> Context
 allCtx = \case
   x@(Star _) -> getContext x

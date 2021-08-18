@@ -13,6 +13,7 @@ module FMCt.Syntax (
     Vv,
 ) where
 
+import FMCt.Aux.Pretty
 
 type Vv = String  -- ^ Variable Value is represeted by a String.
 
@@ -49,7 +50,7 @@ data Type a
     | -- | A FMC Type.
       Type a :=> Type a
     | TEmp
-    deriving (Eq, Ord)
+    deriving (Eq,Show)
 
 instance Semigroup T where
     TEmp <> x = x
@@ -100,8 +101,8 @@ instance Show Lo where
         La -> "λ"
         Lo y -> y
 
-instance Show (Type String) where
-    show x = case x of
+instance Pretty (Type String) where
+    pShow x = case x of
         TCon "" -> " "
         TEmp  -> " " 
         TCon y -> y

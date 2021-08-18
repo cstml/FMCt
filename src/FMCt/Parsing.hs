@@ -154,11 +154,11 @@ vectorType = do
 --
 -- Examples:
 -- e => e
--- "" => ""
+-- " " => e
 emptyType :: Parser T
 emptyType = do
     void (char 'e') <|> spaces
-    return $ TCon ""
+    return $ TEmp
 
 -- nestedType :: Parser T
 -- nestedType = do
