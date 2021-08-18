@@ -1,5 +1,5 @@
-{ mkDerivation, aeson, base, clay, containers, http-types, lucid
-, mtl, parsec, scotty, stdenv, text, transformers, wai-extra
+{ mkDerivation, aeson, base, clay, containers, http-types, lens
+, lucid, mtl, parsec, scotty, stdenv, text, transformers, wai-extra
 }:
 mkDerivation {
   pname = "FMCt";
@@ -8,11 +8,11 @@ mkDerivation {
   isLibrary = true;
   isExecutable = true;
   libraryHaskellDepends = [
-    base containers mtl parsec text transformers
+    base containers lens mtl parsec text transformers
   ];
   executableHaskellDepends = [
-    aeson base clay containers http-types lucid mtl parsec scotty text
-    transformers wai-extra
+    aeson base clay containers http-types lens lucid mtl parsec scotty
+    text transformers wai-extra
   ];
   license = stdenv.lib.licenses.bsd3;
 }

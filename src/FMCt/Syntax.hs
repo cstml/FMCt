@@ -46,17 +46,20 @@ type T = Type String
 -- | Type data structure
 data Type a
     = -- | Type Constant.
-      --            | TVar a             -- ^ Type Variable - (like haskell forall - WIP)
       TCon a
+    | TVar a             -- ^ Type Variable - (like haskell forall - WIP)
     | -- | Type Vector
       TVec [Type a]
     | -- | Location Parametrised Type.
       TLoc Lo (Type a)
     | -- | A FMC Type.
       Type a :=> Type a
+    | TEmp
     deriving (Eq, Ord)
 
 instance Semigroup T where
+    TEmp <> x = x
+    x <> TEmp = x
     TVec [] <> x = x
     x <> TVec [] = x
     TCon "" <> x = x
@@ -67,7 +70,7 @@ instance Semigroup T where
     xx <> yy = TVec [xx, yy]
 
 instance Monoid T where
-    mempty = TCon ""
+    mempty = TEmp 
 
 --------------------------------------------
 -- Location = {out, in, rnd, nd, x, γ, λ} --
@@ -88,9 +91,6 @@ data Lo
     | -- | Default push Location: λ ∈ A.
       La
     | -- | any other location: x ∈ A.
-      --        | InInt            -- ^ User Input Location for Ints
-      --        | InBool           -- ^ User Input Location for Bools
-      --        | InChar           -- ^ User Input Location for Chars
       Lo String
     deriving (Eq, Ord)
 
@@ -109,7 +109,9 @@ instance Show Lo where
 instance Show (Type String) where
     show x = case x of
         TCon "" -> " "
+        TEmp  -> " " 
         TCon y -> y
+        TVar y -> "_" ++ y 
         TVec _x -> mconcat ["(", init $ mconcat $ (flip (++) ",") <$> show <$> _x, ")"]
         TLoc l y -> show l ++ "(" ++ show y ++ ")"
         t1 :=> t2 -> mconcat ["(", show t1, " => ", show t2, ")"]

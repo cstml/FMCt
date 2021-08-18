@@ -1,19 +1,27 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# OPTIONS_GHC -Wno-unused-imports #-}
+{-# OPTIONS_GHC -Wno-incomplete-patterns #-} -- To remember this is here 
 
 module FMCt.TypeChecker (
     TError (..),
+    freshVarTypes,
     typeCheck,
+    normaliseT,
     typeCheckP,
     derive,
     fuse,
     consumes,
     consume,
-    Derivation,
+    Derivation(..),
     (<.>),
     getTermType,
+    splitStream
+    ,pShow
 ) where
+
+
+import Control.Lens (makePrisms)
 
 import Control.Applicative
 import Control.Exception
@@ -39,6 +47,7 @@ data TError
       ErrConsume String
     | -- | Err arrising at fuse level.
       ErrFuse String
+    deriving Eq
 
 instance Show TError where
     show = \case
@@ -74,6 +83,7 @@ data Derivation
     | Abstraction !Judgement !Derivation
     | Application !Judgement !Derivation
     | Fusion !Judgement !Derivation !Derivation
+    deriving (Show, Eq)
 
 type Term = Tm
 
@@ -107,11 +117,10 @@ getJudgement = \case
 
 freshTypeVar :: [T]
 freshTypeVar =
-    TCon
-        <$> [ mconcat $ [[x], [z], show y]
+    TVar
+        <$> [ mconcat $ [[x], show y]
             | y <- [1 ..] :: [Integer]
-            , x <- ['A' .. 'Z']
-            , z <- ['A' .. 'Z']
+            , x <- ['a' .. 'z']
             ]
 
 freshVarTypes :: [T]
@@ -512,10 +521,14 @@ buildContext eCtx =
             B _ _ _ t -> buildContext eCtx t
             St -> pure eCtx
 
+
+class Pretty a where
+  pShow :: a -> String
+
 -- Show Instance
 -- Inspired by previous CW.
-instance Show Derivation where
-    show d = unlines (reverse strs)
+instance Pretty Derivation where
+    pShow d = unlines (reverse strs)
       where
         (_, _, _, strs) = showD d
         showT :: T -> String
