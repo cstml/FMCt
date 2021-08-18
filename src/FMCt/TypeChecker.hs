@@ -459,8 +459,10 @@ normaliseT t
   where
     normalisedT = normaliseT' t
     normaliseT' = \case
+        TEmp -> mempty
         TVec [] -> mempty
         TLoc _ (TVec []) -> mempty
+        TLoc _ (TEmp) -> mempty
         TLoc _ (TCon "") -> mempty
         TLoc l (TVec (x : xs)) -> TLoc l x <> (TLoc l $ TVec xs)
         TVec ([x]) -> normaliseT x

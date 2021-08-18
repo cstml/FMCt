@@ -13,10 +13,8 @@ module FMCt.Syntax (
     Vv,
 ) where
 
--- | Variable Value DataType
-type Vv =
-    -- | Variable Value is represeted by a String.
-    String
+
+type Vv = String  -- ^ Variable Value is represeted by a String.
 
 -------------------------------------------
 -- M,N  = * | x.N | [M]a.N | a<x : t>. N --
@@ -24,15 +22,11 @@ type Vv =
 
 -- | FMC Terms Type
 data Tm
-    = -- | Variable
-      V Vv Tm
-    | -- | Application or Push: [M]a.N
-      P Tm Lo Tm
-    | -- | Abstraction or Pop:  a\<x:t\>.N
-      B Vv T Lo Tm
-    | -- | Star
-      St
-    deriving (Eq, Ord)
+    = V Vv Tm      -- ^ Variable
+    | P Tm Lo Tm   -- ^ Application or Push: [M]a.N
+    | B Vv T Lo Tm -- ^ Abstraction or Pop:  a\<x:t\>.N
+    | St           -- ^ Star
+    deriving Eq 
 
 --------------------------------------------------------------------------
 -- Location Parametrised types = out(a), in(a),b,in(c), int, in(a,b,c)) --
