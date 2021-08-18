@@ -21,9 +21,6 @@ module FMCt.TypeChecker (
     buildContext,    
 ) where
 
-
-import Control.Lens (makePrisms)
-
 import Control.Applicative
 import Control.Exception
 import FMCt.Parsing
@@ -33,16 +30,14 @@ import Text.Read (readMaybe)
 
 -- | Typechecking Errors.
 data TError
-    = ErrSimple String -- ^ A Simple, Generic Error.
-    | ErrUndefT String -- ^ An undefined Type.
-    | ErrMerge String  -- ^ A merge Error.
-    | ErrOverride String -- ^ Attempting to override declared variable type.
-    | ErrWrongT String -- ^ Attemptig to use the wrong types.
-    | ErrNotBinder String -- | Not a binder.
-    | -- | Err arrising at consume level.
-      ErrConsume String
-    | -- | Err arrising at fuse level.
-      ErrFuse String
+    = ErrSimple String    -- ^ A Simple, Generic Error.
+    | ErrUndefT String    -- ^ An undefined Type.
+    | ErrMerge String     -- ^ A merge Error.
+    | ErrOverride String  -- ^ Attempting to override declared variable type.
+    | ErrWrongT String    -- ^ Attemptig to use the wrong types.
+    | ErrNotBinder String -- ^ Not a binder.
+    | ErrConsume String   -- ^ Err arrising at consume level.
+    | ErrFuse String      -- ^ Err arrising at fuse level.
     deriving Eq
 
 instance Show TError where

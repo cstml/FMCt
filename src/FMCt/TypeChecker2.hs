@@ -17,7 +17,6 @@ import FMCt.Aux.Pretty (pShow,Pretty)
 --     | Application !Judgement !Derivation
 --     | Fusion !Judgement !Derivation !Derivation
 
-
 -- -- | FMC Terms Type
 -- data Tm
 --     = -- | Variable
@@ -29,7 +28,6 @@ import FMCt.Aux.Pretty (pShow,Pretty)
 --     | -- | Star
 --       St
 --     deriving (Eq, Ord)
-
 
 type Context = [(Vv, T)]
 
@@ -130,15 +128,17 @@ consume exSubs x y =
   in
     case x' of      
       TEmp -> case y' of
-        TVar _ -> ((y',x'):exSubs,mempty,mempty)
+--        TVar _ -> ((y',x'):exSubs,mempty,mempty)
         _ ->  (exSubs,mempty,y') -- mempty doesn't change anything else 
       
       TVec [] -> (exSubs,mempty,y') -- synonym for mempty
       
-      TCon _ -> case y' of          -- 
+      TCon _ -> case y' of         
         TEmp -> (exSubs,x',mempty)
         TVec [] -> (exSubs,x',mempty)
-        TCon _ -> if x' == y' then (exSubs, mempty, mempty) else error "cannot consume"
+        TCon _ -> if x' == y'
+                  then (exSubs, mempty, mempty)
+                  else error $ "cannot consume! - type " ++ show y' ++ " should be " ++ show x'
         TVec (yy': yys') -> 
           let
             (interSubs,interX,remainY) = consume exSubs x' yy'
@@ -258,6 +258,7 @@ fuse = \case
         res = (subs, normaliseT remainX, normaliseT remainY)
       in
         case res of
+--          _ -> error $ show res 
           (_,TEmp,_) -> (,) subs ((xi <> remainY) :=> yo)
           (_,_,TEmp) -> (,) subs (xi :=> (yo <> remainX))
           _ -> if snd $ aux diffLoc [remainX, remainY, xi, yi]
@@ -388,14 +389,29 @@ applySubsD :: Subs -> Derivation -> Derivation
 applySubsD subs = \case
   Star (cx,tm,ty) -> Star (applySubsCx subs cx, tm ,applySubsT subs ty)
   Variable (cx,tm,ty) -> Variable (applySubsCx subs cx, tm ,applySubsT subs ty)
-  Abstraction (cx,tm,ty) de -> Abstraction (makeSet $ applySubsCx subs cx, tm ,applySubsT subs ty) (applySubsD subs de)
-  Application (cx,tm,ty) de -> Application (makeSet $ applySubsCx subs cx, tm ,applySubsT subs ty) (applySubsD subs de)
-  Fusion (cx,tm,ty) dL dR -> Fusion (makeSet $ applySubsCx subs cx, tm ,applySubsT subs ty) (applySubsD subs dL) (applySubsD subs dR)
+  Abstraction (cx,tm,ty) de ->
+    Abstraction
+      (makeSet $ applySubsCx subs cx, tm ,applySubsT subs ty)
+        (applySubsD subs de)
+  Application (cx,tm,ty) de ->
+    Application
+      (makeSet $ applySubsCx subs cx, tm ,applySubsT subs ty)
+        (applySubsD subs de)
+  Fusion (cx,tm,ty) dL dR ->
+    Fusion
+      (makeSet $ applySubsCx subs cx, tm ,applySubsT subs ty)
+        (applySubsD subs dL)
+          (applySubsD subs dR)
 
 applyTSubsD :: [TSubs] -> Derivation -> Derivation
 applyTSubsD subs = \case 
-  Fusion (cx,tm,ty) dL dR -> Fusion ( (\(x,y)-> (x,applyTSub subs y)) <$> cx, tm , applyTSub subs ty) dL dR
-  _ -> error "You are not allowed to cast here!"
+  Fusion (cx,tm,ty) dL dR -> Fusion ( (\(x,y)-> (x,applyTSub subs y)) <$> cx, nTm , applyTSub subs ty) dL dR
+    where
+      nTm = case tm of
+        B v ty' l t' -> B v (applyTSub subs ty') l t'
+        x -> x
+          
+  _ -> error "You are not allowed to cast here! - this should never happen"
   
 allCtx :: Derivation -> Context
 allCtx = \case

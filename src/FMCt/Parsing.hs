@@ -112,7 +112,7 @@ variableType = do
 uniqueType :: Parser T
 uniqueType = do
     _ <- char '_'
-    return $ TVar "infer" -- this gets changed to a unique variable at typecheck time 
+    return $ TVar "inferA" :=> TVar "inferB"  -- this gets changed to a unique variable at typecheck time 
 
 -- | Constant Type
 --

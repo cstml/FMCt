@@ -40,17 +40,13 @@ type T = Type String
 
 -- | Type data structure
 data Type a
-    = -- | Type Constant.
-      TCon a
-    | TVar a             -- ^ Type Variable - (like haskell forall - WIP)
-    | -- | Type Vector
-      TVec [Type a]
-    | -- | Location Parametrised Type.
-      TLoc Lo (Type a)
-    | -- | A FMC Type.
-      Type a :=> Type a
-    | TEmp
-    deriving (Eq,Show)
+  = TCon a             -- ^ Type Constant.
+  | TVar a             -- ^ Type Variable - (like haskell forall - WIP)
+  | TVec [Type a]      -- ^ Type Vector
+  | TLoc Lo (Type a)   -- ^ Location Parametrised Type.
+  | Type a :=> Type a  -- ^ A Function Type.
+  | TEmp               -- ^ Empty
+  deriving (Eq,Show)
 
 instance Semigroup T where
     TEmp <> x = x
@@ -72,21 +68,14 @@ instance Monoid T where
 --------------------------------------------
 
 -- | Predefined Locations of the FMC together with general locations.
-data Lo
-    = -- | User Output Location - can only be pushed to.
-      Out
-    | -- | User Input Location - can only be popped from.
-      In
-    | -- | Rnd Input Stream - can only be popped from.
-      Rnd
-    | -- | Non Deterministic Stream - can only be popped from.
-      Nd
-    | -- | Home stack : γ ∈ A.
-      Ho
-    | -- | Default push Location: λ ∈ A.
-      La
-    | -- | any other location: x ∈ A.
-      Lo String
+data Lo 
+  = Out       -- ^ User Output Location - can only be pushed to.
+  | In        -- ^ User Input Location - can only be popped from.
+  | Rnd       -- ^ Rnd Input Stream - can only be popped from.
+  | Nd        -- ^ Non Deterministic Stream - can only be popped from.
+  | Ho        -- ^ Home stack : γ ∈ A.
+  | La        -- ^ Default push Location: λ ∈ A.
+  | Lo String -- ^ any other location: x ∈ A.
     deriving (Eq, Ord)
 
 --------------------------------------------------------------------------------
@@ -107,9 +96,9 @@ instance Pretty (Type String) where
         TEmp  -> " " 
         TCon y -> y
         TVar y -> "_" ++ y 
-        TVec _x -> mconcat ["(", init $ mconcat $ (flip (++) ",") <$> show <$> _x, ")"]
-        TLoc l y -> show l ++ "(" ++ show y ++ ")"
-        t1 :=> t2 -> mconcat ["(", show t1, " => ", show t2, ")"]
+        TVec _x -> mconcat ["(", init $ mconcat $ (flip (++) ",") <$> pShow <$> _x, ")"]
+        TLoc l y -> show l ++ "(" ++ pShow y ++ ")"
+        t1 :=> t2 -> mconcat ["(", pShow t1, " => ", pShow t2, ")"]
 
 instance Show Tm where
     show x = case x of
