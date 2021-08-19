@@ -2,33 +2,19 @@
 {-# OPTIONS_GHC -Wno-unused-matches #-}
 
 module FMCt.TypeChecker2 where 
-
---import qualified Control.Lens as L
---import Control.Lens (view,_1,makePrisms)
 import FMCt.Syntax
 import FMCt.Parsing
-import FMCt.TypeChecker (Derivation(..), freshVarTypes, splitStream, TError(..), normaliseT, buildContext, Operations(..))
+import FMCt.TypeChecker (
+  Derivation(..),
+  freshVarTypes,
+  splitStream,
+  TError(..),
+  normaliseT,
+  buildContext,
+  Operations(..),
+  )
 import Control.Monad
 import FMCt.Aux.Pretty (pShow,Pretty)
--- data Derivation
---     = Star !Judgement
---     | Variable !Judgement
---     | Abstraction !Judgement !Derivation
---     | Application !Judgement !Derivation
---     | Fusion !Judgement !Derivation !Derivation
-
--- -- | FMC Terms Type
--- data Tm
---     = -- | Variable
---       V Vv Tm
---     | -- | Application or Push: [M]a.N
---       P Tm Lo Tm
---     | -- | Abstraction or Pop:  a\<x:t\>.N
---       B Vv T Lo Tm
---     | -- | Star
---       St
---     deriving (Eq, Ord)
-
 type Context = [(Vv, T)]
 
 type Judgement = (Context, Term, T)
@@ -58,7 +44,8 @@ derive1 term = derive1' freshVarTypes preBuildCtx term
         where
 
           (lStr,rStr) = splitStream $ tail stream
-          derivL = (derive1' lStr exCx (V bi St))
+          
+          derivL = derive1' lStr exCx (V bi St)
           lCx = getContext derivL
           derivR = (derive1' rStr lCx tm)          
           rCx = getContext derivR
@@ -99,12 +86,15 @@ derive1 term = derive1' freshVarTypes preBuildCtx term
 
       xx@(P ptm lo tm) -> applyTSubsD tCasts $ Fusion (mCx, xx, ty) derivL derivR
         where
---          ty = head stream
+
           (lStr,rStr) = splitStream $ tail stream
+
           derivL = derive1' lStr exCx (P ptm lo St)
           lCx = getContext derivL
+
           derivR = derive1' rStr lCx tm
           rCx = getContext derivR
+
           mCx = makeSet $ lCx ++ rCx
                     
           tL = getDerivationT derivL
@@ -120,7 +110,8 @@ type TSubs = (T,T)
 consume :: [TSubs]       -- ^ Substitutions to be made in both types.
         -> T             -- ^ The consuming Type.
         -> T             -- ^ The consumed Type.
-        -> ([TSubs],T,T) -- ^ The new list of substitutions, remaining from the consuming, remaining from the consumed.
+        -> ([TSubs],T,T) -- ^ The new list of substitutions, remaining from the
+                         -- consuming type, remaining from the consumed type.
 consume exSubs x y =
   let
     x' = normaliseT $ applyTSub  exSubs x -- we use the already subtituted form when consuming
@@ -128,7 +119,6 @@ consume exSubs x y =
   in
     case x' of      
       TEmp -> case y' of
---        TVar _ -> ((y',x'):exSubs,mempty,mempty)
         _ ->  (exSubs,mempty,y') -- mempty doesn't change anything else 
       
       TVec [] -> (exSubs,mempty,y') -- synonym for mempty
@@ -178,6 +168,25 @@ consume exSubs x y =
                           (exSubs,x',y)
         _ :=> _ -> (exSubs,x',y)
         
+      TVec (xx':xxs') -> case y' of
+        TEmp -> (exSubs,x',mempty)
+        TVec [] -> (exSubs,x',mempty)
+        TVec (_:_) ->
+          let
+            (interSubs, interXX', interY') = consume exSubs xx' y'
+            (finalSubs, finalXXs', finalY') = consume interSubs (TVec xxs') interY'
+          in
+            (finalSubs, interXX' <> finalXXs', finalY')
+            
+        -- The same way for all the other types. We recursively try the first of
+        -- the first vector with all of the second. 
+        _ -> 
+          let
+            (interSubs, interXX', interY') = consume exSubs xx' y'
+            (finalSubs, finalXXs', finalY') = consume interSubs (TVec xxs') interY'
+          in
+            (finalSubs, interXX' <> finalXXs', finalY')
+        
       ix' :=> ox' -> case y' of
         TEmp -> (exSubs,x',mempty)
         TVec [] -> (exSubs,x',mempty)
@@ -198,36 +207,16 @@ consume exSubs x y =
                (finalSubs, rightIX', rightIY') =  consume intSubs ox' oy'
                (finalL,finalR) = (normaliseT $ leftIX' <> leftIY', normaliseT $ rightIX' <> rightIY')
                res = (finalSubs, finalL, finalR)
---               res = (finalSubs,mempty,mempty)
                in case res of
                     (_,TEmp,TEmp) -> res
                     
                     _ -> error $ show x' ++ " cannot consume " ++ show y' ++ " fusion result: " ++ show res
-        
-      TVec (xx':xxs') -> case y' of
-        TEmp -> (exSubs,x',mempty)
-        TVec [] -> (exSubs,x',mempty)
-        TVec (_:_) ->
-          let
-            (interSubs, interXX', interY') = consume exSubs xx' y'
-            (finalSubs, finalXXs', finalY') = consume interSubs (TVec xxs') interY'
-          in
-            (finalSubs, interXX' <> finalXXs', finalY')
-            
-        -- The same way for all the other types. We recursively try the first of
-        -- the first vector with all of the second. 
-        _ -> 
-          let
-            (interSubs, interXX', interY') = consume exSubs xx' y'
-            (finalSubs, finalXXs', finalY') = consume interSubs (TVec xxs') interY'
-          in
-            (finalSubs, interXX' <> finalXXs', finalY')
 
 diffLoc :: T -> T -> Bool
 diffLoc = \case
   x@(TCon _) -> \case
     TCon _ -> False
-    TVar _ -> False -- Unsure about this
+    TVar _ -> False -- Unsure about this.
     TEmp -> True
     TVec [] -> True
     TVec y -> diffLoc x `all` y
@@ -255,10 +244,9 @@ fuse = \case
     y@(yi :=> yo) ->
       let
         (subs, remainY, remainX) = consume [] yi xo
-        res = (subs, normaliseT remainX, normaliseT remainY)
+        res                      = (subs, normaliseT remainX, normaliseT remainY)
       in
         case res of
---          _ -> error $ show res 
           (_,TEmp,_) -> (,) subs ((xi <> remainY) :=> yo)
           (_,_,TEmp) -> (,) subs (xi :=> (yo <> remainX))
           _ -> if snd $ aux diffLoc [remainX, remainY, xi, yi]
@@ -282,86 +270,17 @@ applyTSub = \case
      TLoc l t -> TLoc l (applyTSub xx t)
      TVec y -> TVec $ applyTSub xx <$> y
      yi :=> yo -> applyTSub xx yi :=> applyTSub xx yo
-     y@(TVar _) -> if y == xi then xo else applyTSub xs y
-
-{-
-The first derivation always can find a way to derive the term. Now we need a way
- to specialise it. Given that we are not allowing for types to be re-cast we can
- merge the context by creating our first round of substitutions.
--}
-
-mergeContexts0 :: Derivation -> Subs
-mergeContexts0 = \case
-  x@(Star _  ) -> []
-  x@(Variable _  ) -> []
-  x@(Application (cx,tm,ty) d) -> [(ty,nt)]
-    where
-      nt' = getDerivationT d
-      nt =  mempty :=> TLoc loc nt'
-      loc = getLocation tm
-  x@(Abstraction (cx,tm,ty) d) -> [(ty,nt)]
-    where
-      nt' = getDerivationT d
-      nt =  TLoc loc nt' :=> mempty
-      loc = getLocation tm
-  Fusion _ dL dR -> (mergeContexts0 dL) ++ (mergeContexts0 dR)
-  
-
-testM0 :: Term -> IO ()
-testM0 term = putStrLn . pShow $ deriv2
-  where
-    deriv1 = derive1 term
-    subs = mergeContexts0 deriv1
-    deriv2 = applySubsD subs deriv1
-
-       
-type Subs = [(T,T)]
-
-mergeContexts1 :: Derivation -> Subs
-mergeContexts1 = mergeContexts1' . makeSet . allCtx
-  where    
-    mergeContexts1' :: Context -> Subs
-    mergeContexts1' [] = []
-    mergeContexts1' (x:xs) =
-       if uniqueV x xs
-       then mergeContexts1' xs
-       else firstPair x xs : mergeContexts1' xs
-     where
-       uniqueV :: (Vv,T) -> [(Vv,T)] -> Bool
-       uniqueV _ [] = True
-       uniqueV z@(zv,_) ((yv,_):ys)
-         | zv == yv = False
-         | otherwise = uniqueV z ys
-   
-       firstPair :: (Vv,T) -> [(Vv,T)] -> (T,T)
-       firstPair z@(zv,zt) ((yv,yt):ys)
-         | zv == yv = (zt,yt)
-         | otherwise = firstPair z ys
-       firstPair _ [] = error "This Should not happer - have a look at the mergeContexts1 uniqueV implementation"
-
-testM1 :: Term -> IO ()
-testM1 term = putStrLn $ pShow deriv2
-  where
-    deriv1 = derive1 term
-    subs1 = mergeContexts1 deriv1
-    deriv2 = applySubsD subs1 deriv1  
+     y@(TVar _) -> if y == xi then xo else applyTSub xs y         
 
 getType :: Term -> Context -> Either TError T
 getType = \case
     t@(V b St) -> \case
-        [] ->
-            Left $
-                ErrUndefT $
-                    mconcat
-                        [ "Cannot Find type for binder: "
-                        , show b
-                        , " in context. Have you defined it prior to calling it ?"
-                        ]
+        [] -> Left $ ErrUndefT $
+              mconcat [ "Cannot Find type for binder: ", show b
+                      , " in context. Have you defined it prior to calling it ?" ]
         ((b', ty) : xs) -> if b == b' then pure ty else getType t xs
     St -> \_ -> pure $ mempty :=> mempty
-    t -> \_ ->
-        Left . ErrNotBinder $
-            mconcat ["Attempting to get type of:", show t]
+    t -> \_ -> Left . ErrNotBinder $ mconcat ["Attempting to get type of:", show t]
 
 getContext :: Derivation -> Context
 getContext = \case
@@ -371,47 +290,14 @@ getContext = \case
   Fusion (c,_,_) _ _ -> c
   Application (c,_,_) _ -> c
 
-
-applySubsT :: Subs -> T -> T
-applySubsT [] x = x
-applySubsT ((ti,to):xs) x = if ti == x then applySubsT xs to else applySubsT xs x 
-
-applySubsCx :: Subs -> Context -> Context
-applySubsCx x y = applySubsVvT x <$> y
-
-applySubsVvT :: Subs -> (Vv,T) -> (Vv,T)
-applySubsVvT [] y = y
-applySubsVvT ((ti,to):xs) y@(yv,yt)
-  | yt == ti  = applySubsVvT xs (yv,to)
-  | otherwise = applySubsVvT xs y
-  
-applySubsD :: Subs -> Derivation -> Derivation
-applySubsD subs = \case
-  Star (cx,tm,ty) -> Star (applySubsCx subs cx, tm ,applySubsT subs ty)
-  Variable (cx,tm,ty) -> Variable (applySubsCx subs cx, tm ,applySubsT subs ty)
-  Abstraction (cx,tm,ty) de ->
-    Abstraction
-      (makeSet $ applySubsCx subs cx, tm ,applySubsT subs ty)
-        (applySubsD subs de)
-  Application (cx,tm,ty) de ->
-    Application
-      (makeSet $ applySubsCx subs cx, tm ,applySubsT subs ty)
-        (applySubsD subs de)
-  Fusion (cx,tm,ty) dL dR ->
-    Fusion
-      (makeSet $ applySubsCx subs cx, tm ,applySubsT subs ty)
-        (applySubsD subs dL)
-          (applySubsD subs dR)
-
 applyTSubsD :: [TSubs] -> Derivation -> Derivation
 applyTSubsD subs = \case 
   Fusion (cx,tm,ty) dL dR -> Fusion ( (\(x,y)-> (x,applyTSub subs y)) <$> cx, nTm , applyTSub subs ty) dL dR
     where
       nTm = case tm of
         B v ty' l t' -> B v (applyTSub subs ty') l t'
-        x -> x
-          
-  _ -> error "You are not allowed to cast here! - this should never happen"
+        x -> x          
+  _ -> error "You are not allowed to cast or substitute here! - this should never happen."
   
 allCtx :: Derivation -> Context
 allCtx = \case
@@ -422,8 +308,9 @@ allCtx = \case
   x@(Fusion _ dL dR) -> getContext x ++ allCtx dR ++ allCtx dL
 
 makeSet :: Eq a => [a] -> [a]
-makeSet []     = [] 
-makeSet (x:xs) = if elem x xs then makeSet xs else x : makeSet xs
+makeSet = \case
+  [] -> []
+  (x:xs) -> if elem x xs then makeSet xs else x : makeSet xs
 
 getDerivationT :: Derivation -> T
 getDerivationT = \case 
@@ -437,4 +324,4 @@ getLocation :: Term -> Lo
 getLocation = \case
   P _ l _ -> l
   B _ _ l _ -> l
-  x -> error $ "should't be reaching for location in term: " ++ show x
+  x -> error $ "should't be reaching for location in term: " ++ show x ++ ".This should never happen."

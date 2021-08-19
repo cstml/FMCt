@@ -12,9 +12,10 @@ extra-source-files:     CHANGELOG.md,
                         README.md
                         
 common common-specs     
-  Ghc-Options:          -Wno-name-shadowing
-                        -Wall
-                        -Wno-unuused-top-binds
+  Ghc-Options:
+    -Wno-name-shadowing
+    -Wall
+    -Wno-unuused-top-binds
                         -- -Wcompat
                         -- -Wincomplete-uni-patterns
                         -- -Wredundant-constraints
@@ -22,27 +23,19 @@ common common-specs
                         -- -Wincomplete-record-updates
                         -- -Wredundant-constraints
                         
-  build-depends:        base,
-                        containers,
-                        mtl,
-                        parsec,
-                        text,
-                        transformers,
-                        mtl,
+  build-depends:
+    base,
+    containers,
+    parsec,
                         
-  default-extensions:   OverloadedStrings,
-                        LambdaCase
-                        FlexibleInstances 
-                        FlexibleContexts 
-                        RankNTypes 
-                        ScopedTypeVariables 
-                        TypeApplications 
-                        TypeFamilies 
-                        InstanceSigs
+  default-extensions:
+    LambdaCase
                         
-  default-language:     Haskell2010
+  default-language:
+    Haskell2010
                         
-  hs-source-dirs:       src
+  hs-source-dirs:
+    src
 
   other-modules:
     FMCt.Evaluator
@@ -51,50 +44,43 @@ common common-specs
     FMCt.Pretty
     FMCt.Syntax
     FMCt.TypeChecker
+    FMCt.TypeChecker2
+    FMCt.Aux.Pretty
         
 library
-  import:               common-specs
-                        
-  exposed-modules:      FMCt
-                        
-                        
+  import:            common-specs                        
+  exposed-modules:   FMCt
+                                                
 executable FMCt         
-  import:               common-specs
-  
-  hs-source-dirs:       app
-  
-  main-is:              Main.hs
+  import:            common-specs
+  hs-source-dirs:    app
+  main-is:           Main.hs
                                                 
 executable FMCt-web
-  import:               common-specs  
-
-  main-is:              Main.hs
+  import:            common-specs  
+  main-is:           Main.hs
+  hs-source-dirs:    webApp
+  other-modules:     FMCt.Web
+                     FMCt.Web.Components.Brick
+                     FMCt.Web.Components.MainPage
+                     FMCt.Web.Components.RegularPage
+                     FMCt.Web.Helpers.Heroku
+                     FMCt.Web.MainWebsite
+                     FMCt.Web.Pages.Derive
+                     FMCt.Web.Pages.Evaluator
+                     FMCt.Web.Pages.Root
+                     FMCt.Web.Style.BootStrap
+                     FMCt.Web.Style.MainStyle
+                     FMCt.Web.Style.StdStylingHeader                      
+  build-depends:     base,
+                     scotty,
+                     text,
+                     clay,
+                     lucid,
+                     aeson,
+                     FMCt,
+                     wai-extra,
+                     http-types,
   
-  hs-source-dirs:       webApp
---                      , src
-  other-modules:
-    FMCt.Web
-    FMCt.Web.Components.Brick
-    FMCt.Web.Components.MainPage
-    FMCt.Web.Components.RegularPage
-    FMCt.Web.Helpers.Heroku
-    FMCt.Web.MainWebsite
-    FMCt.Web.Pages.Derive
-    FMCt.Web.Pages.Evaluator
-    FMCt.Web.Pages.Root
-    FMCt.Web.Style.BootStrap
-    FMCt.Web.Style.MainStyle
-    FMCt.Web.Style.StdStylingHeader
-                      
-  build-depends:        base 
-                      , scotty
-                      , text
-                      , clay
-                      , lucid
-                      , aeson
-                      , FMCt
-                      , wai-extra
-                      , http-types
-
 
 
