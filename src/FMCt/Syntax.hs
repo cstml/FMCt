@@ -13,10 +13,9 @@ module FMCt.Syntax (
     Vv,
 ) where
 
--- | Variable Value DataType
-type Vv =
-    -- | Variable Value is represeted by a String.
-    String
+import FMCt.Aux.Pretty
+
+type Vv = String  -- ^ Variable Value is represeted by a String.
 
 -------------------------------------------
 -- M,N  = * | x.N | [M]a.N | a<x : t>. N --
@@ -24,15 +23,11 @@ type Vv =
 
 -- | FMC Terms Type
 data Tm
-    = -- | Variable
-      V Vv Tm
-    | -- | Application or Push: [M]a.N
-      P Tm Lo Tm
-    | -- | Abstraction or Pop:  a\<x:t\>.N
-      B Vv T Lo Tm
-    | -- | Star
-      St
-    deriving (Eq, Ord)
+    = V Vv Tm      -- ^ Variable
+    | P Tm Lo Tm   -- ^ Application or Push: [M]a.N
+    | B Vv T Lo Tm -- ^ Abstraction or Pop:  a\<x:t\>.N
+    | St           -- ^ Star
+    deriving Eq 
 
 --------------------------------------------------------------------------
 -- Location Parametrised types = out(a), in(a),b,in(c), int, in(a,b,c)) --
@@ -45,18 +40,17 @@ type T = Type String
 
 -- | Type data structure
 data Type a
-    = -- | Type Constant.
-      --            | TVar a             -- ^ Type Variable - (like haskell forall - WIP)
-      TCon a
-    | -- | Type Vector
-      TVec [Type a]
-    | -- | Location Parametrised Type.
-      TLoc Lo (Type a)
-    | -- | A FMC Type.
-      Type a :=> Type a
-    deriving (Eq, Ord)
+  = TCon a             -- ^ Type Constant.
+  | TVar a             -- ^ Type Variable - (like haskell forall - WIP)
+  | TVec [Type a]      -- ^ Type Vector
+  | TLoc Lo (Type a)   -- ^ Location Parametrised Type.
+  | Type a :=> Type a  -- ^ A Function Type.
+  | TEmp               -- ^ Empty
+  deriving (Eq,Show)
 
 instance Semigroup T where
+    TEmp <> x = x
+    x <> TEmp = x
     TVec [] <> x = x
     x <> TVec [] = x
     TCon "" <> x = x
@@ -67,31 +61,21 @@ instance Semigroup T where
     xx <> yy = TVec [xx, yy]
 
 instance Monoid T where
-    mempty = TCon ""
+    mempty = TEmp 
 
 --------------------------------------------
 -- Location = {out, in, rnd, nd, x, γ, λ} --
 --------------------------------------------
 
 -- | Predefined Locations of the FMC together with general locations.
-data Lo
-    = -- | User Output Location - can only be pushed to.
-      Out
-    | -- | User Input Location - can only be popped from.
-      In
-    | -- | Rnd Input Stream - can only be popped from.
-      Rnd
-    | -- | Non Deterministic Stream - can only be popped from.
-      Nd
-    | -- | Home stack : γ ∈ A.
-      Ho
-    | -- | Default push Location: λ ∈ A.
-      La
-    | -- | any other location: x ∈ A.
-      --        | InInt            -- ^ User Input Location for Ints
-      --        | InBool           -- ^ User Input Location for Bools
-      --        | InChar           -- ^ User Input Location for Chars
-      Lo String
+data Lo 
+  = Out       -- ^ User Output Location - can only be pushed to.
+  | In        -- ^ User Input Location - can only be popped from.
+  | Rnd       -- ^ Rnd Input Stream - can only be popped from.
+  | Nd        -- ^ Non Deterministic Stream - can only be popped from.
+  | Ho        -- ^ Home stack : γ ∈ A.
+  | La        -- ^ Default push Location: λ ∈ A.
+  | Lo String -- ^ any other location: x ∈ A.
     deriving (Eq, Ord)
 
 --------------------------------------------------------------------------------
@@ -106,13 +90,15 @@ instance Show Lo where
         La -> "λ"
         Lo y -> y
 
-instance Show (Type String) where
-    show x = case x of
+instance Pretty (Type String) where
+    pShow x = case x of
         TCon "" -> " "
+        TEmp  -> " " 
         TCon y -> y
-        TVec _x -> mconcat ["(", init $ mconcat $ (flip (++) ",") <$> show <$> _x, ")"]
-        TLoc l y -> show l ++ "(" ++ show y ++ ")"
-        t1 :=> t2 -> mconcat ["(", show t1, " => ", show t2, ")"]
+        TVar y -> "_" ++ y 
+        TVec _x -> mconcat ["(", init $ mconcat $ (flip (++) ",") <$> pShow <$> _x, ")"]
+        TLoc l y -> show l ++ "(" ++ pShow y ++ ")"
+        t1 :=> t2 -> mconcat ["(", pShow t1, " => ", pShow t2, ")"]
 
 instance Show Tm where
     show x = case x of

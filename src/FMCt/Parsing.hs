@@ -93,25 +93,33 @@ type TConstant = String
 -- >> Int
 -- >> Bool
 typeConstant :: Parser TConstant
-typeConstant = many1 alpha <> many alphaNumeric
+typeConstant = many1 capsAlpha <> many alphaNumeric
 
-{-
--- | Home Constants are constants that are on the lambda row
+-- | Variable Type
 --
--- Examples:
--- >> Int <-> λ(Int)
-homeType :: Parser T
-homeType = do
-  typeC <- between (char '(') (char ')') termType
-  return $ TLoc La typeC
--}
+-- Example:
+-- >> a
+-- >> b
+variableType :: Parser T
+variableType = do
+    x <- many1 nCapsAlpha <> many alphaNumeric
+    return $ TVar x
+
+-- | Unique Variable type
+--
+-- Example:
+-- >> _
+uniqueType :: Parser T
+uniqueType = do
+    _ <- char '_'
+    return $ TVar "inferA" :=> TVar "inferB"  -- this gets changed to a unique variable at typecheck time 
 
 -- | Constant Type
 --
 -- Example:
 -- >> Int
--- >> a
--- >> b
+-- >> A
+-- >> B
 constantType :: Parser T
 constantType = do
     x <- typeConstant
@@ -125,7 +133,7 @@ constantType = do
 locationType :: Parser T
 locationType = do
     l <- location
-    t <- between (spaces >> char '(') (spaces >> char ')') (constantType <|> termType <|> constantType)
+    t <- between (spaces >> char '(') (spaces >> char ')') termType 
     return $ TLoc l t
 
 -- | Vector Types are a list of types.
@@ -146,11 +154,11 @@ vectorType = do
 --
 -- Examples:
 -- e => e
--- "" => ""
+-- " " => e
 emptyType :: Parser T
 emptyType = do
     void (char 'e') <|> spaces
-    return $ TCon ""
+    return $ TEmp
 
 -- nestedType :: Parser T
 -- nestedType = do
@@ -163,8 +171,13 @@ higherType = do
     ts <- between (char '(') (char ')') (termType `sepBy1` (spaces >> string "=>" >> spaces))
     return $ foldr1 (:=>) ts
 
+-- flatHigherType :: Parser T
+-- flatHigherType = do
+--     ts <- termType `sepBy1` (spaces >> string "=>" >> spaces)
+--     return $ foldr1 (:=>) ts
+
 termType :: Parser T
-termType = try higherType <|> try vectorType <|> try locationType <|> try constantType <|> emptyType
+termType = try higherType <|> try vectorType <|> try locationType <|> try constantType <|> try variableType <|> try uniqueType <|> emptyType 
 
 --------------------------------------------------------------------------------
 -- Aux
@@ -173,6 +186,13 @@ sepparator = eof <|> void (between spaces spaces (oneOf ".;"))
 
 alpha :: Parser Char
 alpha = oneOf $ ['a' .. 'z'] ++ ['A' .. 'Z']
+
+capsAlpha :: Parser Char
+capsAlpha = oneOf $  ['A' .. 'Z']
+
+nCapsAlpha :: Parser Char
+nCapsAlpha = oneOf $  ['a' .. 'z']
+
 
 numeric :: Parser Char
 numeric = oneOf ['0' .. '9']
