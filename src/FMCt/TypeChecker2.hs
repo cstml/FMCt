@@ -105,13 +105,39 @@ derive1 term = derive1' freshVarTypes preBuildCtx term
 testD1 :: Term -> IO ()
 testD1 = putStrLn . pShow . derive1
 
+fresh :: T -> T -> (T,T)
+fresh x y = (x',y')
+  where
+    
+    x' = applyTSub subsX' x
+    y' = applyTSub subsY' y
+    
+    (restFresh, subsX') = aux' freshVarTypes x
+
+    (_, subsY') = aux' restFresh y
+    
+    aux' :: [T] -> T -> ([T],[TSubs])
+    aux' stream = \case
+      TEmp -> (stream,[])
+      TCon _ -> (stream,[])
+      TVec [] -> (stream,[])
+      TVec (x:xs) -> do
+        let (leftStream, subs1) = aux' stream x
+        let (leftStream', subs2) = aux' leftStream (TVec xs)
+        (leftStream', subs1 ++ subs2)
+      TVar x -> (tail stream, [(TVar x, head stream)])
+      TLoc l x -> do
+        let (lStream, subs) = aux' stream x
+        
+
 type TSubs = (T,T)
 
 consume :: [TSubs]       -- ^ Substitutions to be made in both types.
         -> T             -- ^ The consuming Type.
         -> T             -- ^ The consumed Type.
-        -> ([TSubs],T,T) -- ^ The new list of substitutions, remaining from the
-                         -- consuming type, remaining from the consumed type.
+        -> ([TSubs],T,T) -- ^ The result containing: (new list of substitutions,
+                         -- unconsumed types remaining from the consuming type,
+                         -- unconsumed types remaining from the consumed type).
 consume exSubs x y =
   let
     x' = normaliseT $ applyTSub  exSubs x -- we use the already subtituted form when consuming
