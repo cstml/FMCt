@@ -112,7 +112,8 @@ variableType = do
 uniqueType :: Parser T
 uniqueType = do
     _ <- char '_'
-    return $ TVar "inferA" :=> TVar "inferB"  -- this gets changed to a unique variable at typecheck time 
+    return $ TVar "inferA" :=> TVar "inferB"  -- this gets changed to a unique variable at typecheck time
+    -- TODO: preparser that changes these to fresh vars
 
 -- | Constant Type
 --
@@ -157,7 +158,7 @@ vectorType = do
 -- " " => e
 emptyType :: Parser T
 emptyType = do
-    void (char 'e') <|> spaces
+    _ <- (try $ char 'e') <|> (oneOf " " <*spaces )
     return $ TEmp
 
 -- nestedType :: Parser T
@@ -168,8 +169,11 @@ emptyType = do
 
 higherType :: Parser T
 higherType = do
-    ts <- between (char '(') (char ')') (termType `sepBy1` (spaces >> string "=>" >> spaces))
-    return $ foldr1 (:=>) ts
+    between (char '(') (char ')') $ do
+      t1 <- spaces >> termType 
+      _  <- spaces >> string "=>" >> spaces
+      t2 <- termType <* spaces
+      return $ t1 :=> t2
 
 -- flatHigherType :: Parser T
 -- flatHigherType = do
@@ -177,7 +181,13 @@ higherType = do
 --     return $ foldr1 (:=>) ts
 
 termType :: Parser T
-termType = try higherType <|> try vectorType <|> try locationType <|> try constantType <|> try variableType <|> try uniqueType <|> emptyType 
+termType = try higherType
+           <|> try vectorType
+           <|> try locationType
+           <|> try constantType
+           <|> try variableType
+           <|> try uniqueType
+           <|> emptyType 
 
 --------------------------------------------------------------------------------
 -- Aux

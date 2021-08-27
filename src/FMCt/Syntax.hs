@@ -11,9 +11,10 @@ module FMCt.Syntax (
     Tm (..),
     Type (..),
     Vv,
+    module P,
 ) where
 
-import FMCt.Aux.Pretty
+import FMCt.Aux.Pretty as P
 
 type Vv = String  -- ^ Variable Value is represeted by a String.
 
@@ -48,15 +49,23 @@ data Type a
   | TEmp               -- ^ Empty
   deriving (Eq,Show)
 
-instance Semigroup T where
+instance Functor Type where
+  fmap f = \case
+    TEmp    -> TEmp
+    TCon x  -> TCon $ f x
+    TVec [] -> TEmp
+    TLoc l x -> TLoc l (f <$> x)
+    TVar x -> TVar $ f x
+    TVec (x:xs) -> (f <$> x) <> (f <$> (TVec xs))
+    x :=> y -> (f <$> x) :=> (f <$> y) 
+
+instance Semigroup (Type a) where
     TEmp <> x = x
     x <> TEmp = x
     TVec [] <> x = x
     x <> TVec [] = x
-    TCon "" <> x = x
     x <> TVec y = TVec $ x : y
     TVec x <> y = TVec $ x ++ [y]
-    x <> TCon "" = x
     xx@(TCon _) <> yy@(TCon _) = TVec [xx, yy]
     xx <> yy = TVec [xx, yy]
 
