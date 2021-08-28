@@ -46,6 +46,7 @@ common common-specs
     FMCt.Syntax
     FMCt.TypeChecker
     FMCt.TypeChecker2
+    FMCt.TypeChecker3
     FMCt.Aux.Pretty
         
 library

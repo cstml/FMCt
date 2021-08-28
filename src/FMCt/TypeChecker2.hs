@@ -15,6 +15,8 @@ import FMCt.TypeChecker (
   )
 import Control.Monad
 import FMCt.Aux.Pretty (pShow,Pretty)
+import Data.Set
+
 type Context = [(Vv, T)]
 
 type Judgement = (Context, Term, T)
@@ -23,6 +25,23 @@ type Term = Tm
 
 emptyCx :: Context
 emptyCx = [("*",mempty :=> mempty)]
+
+normalForm :: T -> T
+normalForm = \x -> case x of 
+  TEmp -> TEmp
+  TVar _ -> x
+  TCon _ -> x
+  TVec [] -> TEmp
+  TVec (m:n:p) -> case m of
+    TLoc l _ -> case n of
+      TLoc k _ -> if l < k then (normalForm m) <> normalForm (TVec (n:p))
+                  else (normalForm n) <> normalForm (TVec (m:p))
+      _ -> (normalForm n) <> normalForm (TVec (m:p))
+    _ -> (normalForm m) <> normalForm (TVec (n:p))
+  TVec [_] -> normalForm x
+  TLoc l t -> TLoc l (normalForm t)
+  m :=> n -> normalForm m :=> normalForm n
+  
 
 derive1 :: Term -> Derivation
 derive1 term = derive1' freshVarTypes preBuildCtx term
@@ -108,13 +127,13 @@ testD1 = putStrLn . pShow . derive1
 
 type TSubs = (T,T)
 
-consume :: [TSubs]       -- ^ Substitutions to be made in both types.
+merge :: [TSubs]       -- ^ Substitutions to be made in both types.
         -> T             -- ^ The consuming Type.
-        -> T             -- ^ The consumed Type.
+        -> T             -- ^ The merged Type.
         -> ([TSubs],T,T) -- ^ The result containing: (new list of substitutions,
-                         -- unconsumed types remaining from the consuming type,
-                         -- unconsumed types remaining from the consumed type).
-consume exSubs x y =
+                         -- unmerged types remaining from the consuming type,
+                         -- unmerged types remaining from the merged type).
+merge exSubs x y =
   let
     x' = normaliseT $ applyTSub  exSubs x -- we use the already subtituted form when consuming
     y' = normaliseT $ applyTSub  exSubs y -- for both terms
@@ -130,22 +149,22 @@ consume exSubs x y =
         TVec [] -> (exSubs,x',mempty)
         TCon _ -> if x' == y'
                   then (exSubs, mempty, mempty)
-                  else error $ "cannot consume! - type " ++ show y' ++ " should be " ++ show x'
+                  else error $ "cannot merge! - type " ++ show y' ++ " should be " ++ show x'
         TVec (yy': yys') -> 
           let
-            (interSubs,interX,remainY) = consume exSubs x' yy'
-            (finalSubs,finalX,finalY) = consume interSubs interX (TVec yys')
+            (interSubs,interX,remainY) = merge exSubs x' yy'
+            (finalSubs,finalX,finalY) = merge interSubs interX (TVec yys')
           in
             (finalSubs,finalX,remainY <> finalY)
-        t1 :=> t2 ->  error $ show x' ++ " cannot consume higher type " ++ show y'
-        -- if a constant tries to consume a variable, it creates a substitution and gets fully consumed
+        t1 :=> t2 ->  error $ show x' ++ " cannot merge higher type " ++ show y'
+        -- if a constant tries to merge a variable, it creates a substitution and gets fully merged
         TVar _ -> ((y',x') : exSubs, mempty, mempty) 
         TLoc _ _ -> (exSubs,x',y')
 
       TVar _ -> case y' of
         TEmp -> ((x',y'):exSubs,mempty,mempty)
         TVec [] -> (exSubs,x',mempty)
-        -- if consumed by anything, the Variable gets cast and changes all the
+        -- if merged by anything, the Variable gets cast and changes all the
         -- other appearances of itself.
         _ -> (((x',y'):exSubs),mempty,mempty)
 
@@ -156,14 +175,14 @@ consume exSubs x y =
         TVar _ -> (exSubs,x',y) -- home row variable and locations don't interact
         TVec (yy': yys') -> 
           let
-            (interSubs,interX,remainY) = consume exSubs x' yy'
-            (finalSubs,finalX,finalY) = consume interSubs interX (TVec yys')
+            (interSubs,interX,remainY) = merge exSubs x' yy'
+            (finalSubs,finalX,finalY) = merge interSubs interX (TVec yys')
           in
             (finalSubs,finalX,remainY <> finalY)
         TLoc yl' yt' -> if yl' == xl'
                         then
                           let
-                            (finalSubs, finalX', finalY') = consume exSubs xt' yt'
+                            (finalSubs, finalX', finalY') = merge exSubs xt' yt'
                           in
                             (finalSubs, TLoc xl' finalX', TLoc yl' finalY')
                         else
@@ -175,8 +194,8 @@ consume exSubs x y =
         TVec [] -> (exSubs,x',mempty)
         TVec (_:_) ->
           let
-            (interSubs, interXX', interY') = consume exSubs xx' y'
-            (finalSubs, finalXXs', finalY') = consume interSubs (TVec xxs') interY'
+            (interSubs, interXX', interY') = merge exSubs xx' y'
+            (finalSubs, finalXXs', finalY') = merge interSubs (TVec xxs') interY'
           in
             (finalSubs, interXX' <> finalXXs', finalY')
             
@@ -184,8 +203,8 @@ consume exSubs x y =
         -- the first vector with all of the second. 
         _ -> 
           let
-            (interSubs, interXX', interY') = consume exSubs xx' y'
-            (finalSubs, finalXXs', finalY') = consume interSubs (TVec xxs') interY'
+            (interSubs, interXX', interY') = merge exSubs xx' y'
+            (finalSubs, finalXXs', finalY') = merge interSubs (TVec xxs') interY'
           in
             (finalSubs, interXX' <> finalXXs', finalY')
         
@@ -197,55 +216,48 @@ consume exSubs x y =
         TLoc _ _ -> (exSubs,x',y')
         TVec (yy' : yys') ->
           let
-            (interSubs, interX', interYY') = consume exSubs x' yy'
-            (finalSubs, finalX', finalYY') = consume interSubs interX' (TVec yys')
+            (interSubs, interX', interYY') = merge exSubs x' yy'
+            (finalSubs, finalX', finalYY') = merge interSubs interX' (TVec yys')
           in
             (finalSubs, finalX', interYY' <> finalYY')
         iy' :=> oy' ->
           if normaliseT x' == normaliseT y'
              then (exSubs, mempty, mempty)
              else let
-               (intSubs, leftIX', leftIY') =  consume exSubs ix' iy'
-               (finalSubs, rightIX', rightIY') =  consume intSubs ox' oy'
+               (intSubs, leftIX', leftIY') =  merge exSubs ix' iy'
+               (finalSubs, rightIX', rightIY') =  merge intSubs ox' oy'
                (finalL,finalR) = (normaliseT $ leftIX' <> leftIY', normaliseT $ rightIX' <> rightIY')
                res = (finalSubs, finalL, finalR)
                in case res of
                     (_,TEmp,TEmp) -> res
                     
-                    _ -> error $ show x' ++ " cannot consume " ++ show y' ++ " fusion result: " ++ show res
+                    _ -> error $ show x' ++ " cannot merge " ++ show y' ++ " fusion result: " ++ show res
 
+-- | Assess if two terms have no common unsaturated location
 diffLoc :: T -> T -> Bool
-diffLoc = \case
-  x@(TCon _) -> \case
-    TCon _ -> False
-    TVar _ -> False -- Unsure about this.
-    TEmp -> True
-    TVec [] -> True
-    TVec y -> diffLoc x `all` y
-    TLoc _ _ -> True
-    _ -> False 
-  x@(TVar _) -> \case
-    TLoc _ _ -> True
-    TEmp -> True
-    TVec [] -> True
-    TVec y -> diffLoc x `all` y
-    _ -> False
-  TVec [] -> const True
-  TEmp -> const True
-  xx@(TVec (x:xs)) -> \case
-    y@(TVec yy) -> diffLoc x `all` yy && (diffLoc (TVec xs) y)
-    y -> diffLoc y xx -- flip it
-  TLoc l _ -> \case
-    TLoc k _ -> if l == k then False else True
-    _ -> True
-  x@(_ :=> _) -> \y -> diffLoc y x
+diffLoc x y = (loc' x `intersection` loc' y) == empty
+  where
+    loc' = loc . normaliseT 
+  
+loc :: T -> Set Lo
+loc = \case
+  TEmp -> empty
+  TVec [] -> empty
+  TCon _ -> singleton Ho
+  TVar _ -> singleton Ho
+  _ :=> _ -> singleton Ho
+  TVec (x:xs) -> loc x `union` loc (TVec xs)
+  TLoc l _ -> singleton l
+
+  
+
     
 fuse :: T -> T -> ([TSubs],T)
 fuse = \case
   x@(xi :=> xo) -> \case
     y@(yi :=> yo) ->
       let
-        (subs, remainY, remainX) = consume [] yi xo
+        (subs, remainY, remainX) = merge [] yi xo
         res                      = (subs, normaliseT remainX, normaliseT remainY)
       in
         case res of
