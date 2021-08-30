@@ -47,7 +47,7 @@ data Type a
   | TLoc Lo (Type a)   -- ^ Location Parametrised Type.
   | Type a :=> Type a  -- ^ A Function Type.
   | TEmp               -- ^ Empty
-  deriving (Eq,Show)
+  deriving (Eq,Show,Ord)
 
 instance Functor Type where
   fmap f = \case
@@ -102,12 +102,12 @@ instance Show Lo where
 instance Pretty (Type String) where
     pShow x = case x of
         TCon "" -> " "
-        TEmp  -> " " 
+        TEmp  -> "()" 
         TCon y -> y
         TVar y -> "_" ++ y 
         TVec _x -> mconcat ["(", init $ mconcat $ (flip (++) ",") <$> pShow <$> _x, ")"]
         TLoc l y -> show l ++ "(" ++ pShow y ++ ")"
-        t1 :=> t2 -> mconcat ["(", pShow t1, " => ", pShow t2, ")"]
+        t1 :=> t2 -> mconcat [pShow t1, " => ", pShow t2]
 
 instance Show Tm where
     show x = case x of

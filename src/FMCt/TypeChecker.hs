@@ -1,6 +1,8 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# OPTIONS_GHC -Wno-unused-imports #-}
+{-# OPTIONS_GHC -Wno-unused-local-binds #-}
+{-# OPTIONS_GHC -Wno-unused-matches #-}
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-} -- To remember this is here 
 
 module FMCt.TypeChecker (
@@ -21,6 +23,7 @@ module FMCt.TypeChecker (
     buildContext,    
 ) where
 
+--import Data.Set
 import Control.Applicative
 import Control.Exception
 import FMCt.Parsing
@@ -115,7 +118,9 @@ freshTypeVar =
             ]
 
 freshVarTypes :: [T]
-freshVarTypes = TVec . (: []) <$> freshTypeVar
+freshVarTypes = zipWith (:=>) ls rs
+  where
+    (ls,rs) = splitStream freshTypeVar
 
 splitStream :: [a] -> ([a], [a])
 splitStream x = (,) l r
@@ -533,7 +538,7 @@ instance Pretty Derivation where
                     [] -> []
                     c -> (flip (++) " ") . mconcat $ sCtx <$> c
         showJ :: Judgement -> String
-        showJ (cx, n, t) = mconcat $ showC cx : "|- " : show n : " : " : showT t : []
+        showJ (cx, n, t) = mconcat $ showC cx{-"Γ "-} : "|- " : show n : " : " : showT t : []
         showL :: Int -> Int -> Int -> String
         showL l m r = mconcat $ replicate l ' ' : replicate m '-' : replicate r ' ' : []
         showD :: Derivation -> (Int, Int, Int, [String])
