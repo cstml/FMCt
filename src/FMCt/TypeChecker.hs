@@ -73,7 +73,7 @@ type Judgement = (Context, Term, T)
 
 data Derivation
     = Star !Judgement
-    | Variable !Judgement
+    | Variable    !Judgement 
     | Abstraction !Judgement !Derivation
     | Application !Judgement !Derivation
     | Fusion !Judgement !Derivation !Derivation

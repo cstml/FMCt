@@ -17,6 +17,8 @@ import Control.Monad
 import FMCt.Aux.Pretty (pShow,Pretty)
 import Data.Set
 import Control.Exception
+import Control.Lens hiding (Context)
+
 type Context = [(Vv, T)]
 
 type Judgement = (Context, Term, T)
@@ -99,6 +101,40 @@ derive0 term = derive0' freshVarTypes term
           derivR = derive0' rStr tm
           ty = head stream
 
+unionC :: Context -> Context -> Context
+unionC x y = applySubsC (mergeCx x y) x
+  where
+      mergeCx []     y = []
+      mergeCx (x:xs) y = aux x y ++ mergeCx xs y
+
+      aux x [] = []
+      aux x@(bi,t) ((bi',t'):ys)
+        | bi == bi'  = view _1 (merge [] t t')
+        | otherwise  = aux x ys
+
+{-
+unionS :: Derivation -> Derivation
+unionS x = case x of
+  Fusion (cx,t,ty) dL dR -> Fusion (nCx,t,ty) dL'' dR''
+    where
+      dL' = unionS dL
+      dR' = unionS dR
+      cL = getContext dL'
+      cR = getContext dR'
+      nCx = cL `unionC` cR
+      dL'' = setContextR dL' nCx
+      dR'' = setContextR dR' nCx    
+  y -> y
+-}
+
+testU :: String -> IO ()
+testU x = do
+  term  <- return $ parseFMC x
+  deriv <- return $ derive0 term
+  putStrLn . pShow $ deriv
+--  putStrLn . pShow  $ unionS deriv
+
+
 unionD :: Derivation -> Either TError Derivation
 unionD = \case
   deriv@(Fusion (cx, x, ty) dL dR) -> fuseResult
@@ -106,8 +142,8 @@ unionD = \case
       dL' = unionD dL
       dR' = unionD dR
       fuseResult  = case (dL',dR') of
-        (Left e, _ ) -> Left e
-        (_,Left e) -> Left e
+        (Left e, _ )   -> Left e
+        (_,Left e)     -> Left e
         (Right ndL, Right ndR) -> nfuseResult
           where
             tL = getDType ndL
@@ -235,7 +271,6 @@ testD0 = putStrLn . pShow . derive0 . parseFMC
 testD1 :: String -> IO ()
 testD1 x = either (putStrLn . show) (putStrLn . pShow) <$> unionD $ derive0 $ parseFMC x
 
-
 testD1' :: String -> IO ()
 testD1' x = either (putStrLn . show) (putStrLn . pShow) <$>  derive1 $ parseFMC x
 
@@ -255,7 +290,7 @@ merge exSubs x y =
   in
     case x' of      
       TEmp -> case y' of
-        TVar _ ->  ((y',mempty):exSubs,mempty,y')
+--        TVar _ ->  ((y',mempty):exSubs,mempty,y')
         _      ->  (exSubs,mempty,y') -- mempty doesn't change anything else        
       
       TVec [] -> merge exSubs TEmp y
@@ -398,6 +433,19 @@ setContext = \case
   Abstraction (c,a,b) n   -> \c' -> Abstraction (c',a,b) n
   Application (c,a,b) n   -> \c' -> Application (c',a,b) n
   Fusion      (c,a,b) l r -> \c' -> Fusion      (c',a,b) l r
+
+setContextR :: Derivation -> Context -> Derivation
+setContextR = \case
+  Star        (c,a,b)     -> \c' -> Star        (c',a,b)
+  Variable    (c,a,b)     -> \c' -> Variable    (c',a,b)
+  Abstraction (c,a,b) n   -> \c' -> Abstraction (c',a,b) (setContextR n c')
+  Application (c,a,b) n   -> \c' -> Application (c',a,b) (setContextR n c')
+  Fusion      (c,a,b) l r -> \c' -> Fusion      (c',a,b) (setContextR l c') (setContextR r c')
+
+
+applySubsC :: [TSubs] -> Context -> Context
+applySubsC x y = (\(b,bt) -> (b, applyTSub x bt)) <$> y 
+
 
 applyTSubsD :: [TSubs] -> Derivation -> Derivation
 applyTSubsD subs = applyDTypeSubs subs .  applyContextSubs subs
