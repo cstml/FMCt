@@ -34,13 +34,11 @@ push :: Tm -> Lo -> State -> State
 push t In _ = error $ "Cannot push term: " ++ show t ++ " to in" -- not allowed
 push t Rnd _ = error $ "Cannot push term: " ++ show t ++ " to rnd" -- not allowed
 push t Nd _ = error $ "Cannot push term: " ++ show t ++ " to nd" -- not allowed
-push t l (m, b) = case m !? l of
-    Nothing -> (M.insert l [t] m, b)
-    Just x -> (M.insert l (t : x) m, b)
+push t l (m, b) = maybe (M.insert l [t] m, b) (\x -> (M.insert l (t : x) m, b)) $ m !? l 
 
 -- | Binds a term to a value and puts in the memory
 bind :: Vv -> Lo -> State -> State
-bind vv l (m, b) = case m !? l of
+bind vv l (m, b) = case m !? l of 
     Nothing -> error $ "Empty Location " ++ show l
     Just [] -> error $ "Empty Location " ++ show l
     Just (x : xs) -> (M.insert l xs m, M.insert vv [x] b)

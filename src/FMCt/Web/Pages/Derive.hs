@@ -3,7 +3,7 @@ module FMCt.Web.Pages.Derive (pDerive) where
 import Data.List (unfoldr)
 import qualified Data.Text.Lazy as LA
 import FMCt (derive2, pShow, getTermType, pShow')
-import FMCt.Parsing (parseFMC', parseFMCtoString)
+import FMCt.Parsing (parseFMC')
 import FMCt.Web.Components.Brick (brick)
 import FMCt.Web.Components.RegularPage (regularPage)
 import qualified Lucid as LU

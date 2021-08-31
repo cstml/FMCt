@@ -1,9 +1,15 @@
 {-# OPTIONS_GHC -Wno-unused-imports #-}
+{-# OPTIONS_GHC -Wno-unused-top-binds #-}
 {-# OPTIONS_GHC -Wno-unused-matches #-}
 {-# LANGUAGE TupleSections #-}
 
 module FMCt.TypeChecker2 
   (
+    derive0,
+    derive1,
+    testD0,    
+    testD1,
+    testD2,
     derive2,
     getTermType,
     pShow',
@@ -59,8 +65,6 @@ normalForm = \x -> case x of
   TLoc l t -> TLoc l (normalForm t)
   m :=> n -> normalForm m :=> normalForm n
 
-flat :: Either TError (Either TError a) -> Either TError a
-flat = either Left id 
   
 derive0 :: Term -> Derivation
 derive0 term = derive0' freshVarTypes term

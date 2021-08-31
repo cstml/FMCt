@@ -6,4 +6,5 @@ module FMCt.Web (
 
 import FMCt.Web.MainWebsite as X (mainWebsite)
 
+main :: IO ()
 main = mainWebsite
