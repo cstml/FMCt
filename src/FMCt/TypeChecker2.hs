@@ -595,7 +595,7 @@ pShow' d = unlines (reverse strs)
     showT :: T -> String
     showT = pShow
     showJ :: Judgement -> String
-    showJ (cx, n, t) = mconcat $ "Γ " : "|- " : show n : " : " : showT t : []
+    showJ (cx, n, t) = mconcat $ "Γ " : "|- " : pShow n : " : " : showT t : []
     showL :: Int -> Int -> Int -> String
     showL l m r = mconcat $ replicate l ' ' : replicate m '-' : replicate r ' ' : []
     showD :: Derivation -> (Int, Int, Int, [String])
