@@ -18,6 +18,7 @@ import FMCt.Aux.Pretty (pShow,Pretty)
 import Data.Set
 import Control.Exception
 import Control.Lens hiding (Context)
+import Data.List (nub)
 
 type Context = [(Vv, T)]
 
@@ -75,10 +76,9 @@ derive0 term = derive0' freshVarTypes term
           pBCx' = toList $ fromList pBCx `union` singleton (bi,ty')
           nDeriv = derive0' (tail stream) t'
 
-      x@(B bi bTy lo t') -> Abstraction ([], x, ty) nDeriv
+      x@(B bi bTy lo t') -> Abstraction (nCx, x, ty) nDeriv
         where
           ty = TLoc lo bTy :=> mempty
-          deriv = Variable (nCx, (V bi St), bTy)
           nCx = [(bi,bTy)]
           nDeriv = derive0' (tail stream) t'
             
@@ -90,53 +90,91 @@ derive0 term = derive0' freshVarTypes term
           nDeriv = derive0' (tail stream) t'
   
 derive1 :: Term -> Derivation
-derive1 term = derive1' freshVarTypes pBCx term
+derive1 term = snd $ derive1' freshVarTypes pBCx emptySb term
   where
-
-    emptyCx = []    
+    emptySb = []
     pBCx1   = either (const emptyCx) id $ buildContext emptyCx term -- add constants
     pBCx2   = parseBinders term
-    pBCx    = pBCx1 ++ pBCx2
-
+    pBCx    = chkUnique $ pBCx1 ++ pBCx2
+    chkUnique :: Context -> Context
+    chkUnique x = if length x == length (nub $ fmap fst x) then x else error "Variable double bind."
+                            
     parseBinders = \case
       St          -> []
       B bi t _ t' -> (bi,t) : parseBinders t'
       P t _ t'    -> parseBinders t ++ parseBinders t'
       V _ t'      -> parseBinders t'
 
-    derive1' :: [T] -> Context -> Term -> Derivation
-    derive1' stream exCx = \case
+    derive1' :: [T] -> Context -> [TSubs] -> Term -> ([TSubs],Derivation)
+    derive1' stream exCx exSb = \case
       
-      St -> Star (pBCx, St, ty)
+      St -> (exSb,Star (pBCx, St, ty))
         where ty = TEmp :=> TEmp
       
-      x@(V bi t') -> Variable (pBCx', x, nTy) nDeriv
+      x@(V bi t') -> (,) nSb (Variable (nCx, x, rTy') nDeriv)
         where
---          ty     = normaliseT $ head stream
-          ty'    = either {-(const ty)-} (error.show) id $ getType (V bi St) pBCx
-
-          pBCx' :: [(Vv,T)]          
-          pBCx'  = toList $ fromList pBCx `union` singleton (bi,ty')
-          nDeriv = derive1' (tail stream) exCx t'
-
+          uRes   = derive1' (tail stream) exCx exSb t'
+          nDeriv = snd $ uRes
+          upSb   = fst $ uRes
+          
+          upCx   = applySubsC upSb exCx
+          ty     = either (error.show) id $ getType (V bi St) upCx
+          
           upType = getDType nDeriv
 
-          nTy    = either (error.show) (snd) $ ty' `fuse` upType 
+          fusion = ty `fuse` upType
+          
+          cast   = either (error.show) fst $ fusion
+          rTy    = either (error.show) snd $ fusion
 
-      x@(B bi bTy lo t') -> Abstraction (exCx, x, ty') nDeriv
+          nSb    = upSb ++ cast
+
+          nCx    = applySubsC nSb upCx
+          rTy'   = applyTSub  nSb rTy
+
+          
+      x@(B bi _ lo t') -> (,) nSb (Abstraction (nCx, x, nTy) nDeriv)
         where
-          ty     = TLoc lo bTy :=> mempty
-          ty'    = either (error.show) id $ getType (V bi St) exCx
-          deriv  = Variable (nCx, (V bi St), bTy)
-          nCx    = [(bi,bTy)]
-          nDeriv = derive1' (tail stream) exCx t'
+          uRes   = derive1' (tail stream) exCx exSb t'
+          nDeriv = snd uRes
+          upSb   = fst uRes
+          
+          upCx   = applySubsC upSb exCx
+          upType = getDType nDeriv
+          
+          ty'    = either (error.show) id $ getType (V bi St) upCx
+          ty     = TLoc lo ty' :=> mempty
+          
+          nTy    = either (error.show) (snd) $ ty  `fuse` upType
+          cast   = either (error.show) (fst) $ ty' `fuse` upType
+          
+          nCx    = applySubsC cast upCx
+          nSb    = exSb ++ cast
             
-      xx@(P ptm lo t') -> Application (exCx, xx, ty) deriv nDeriv
+      xx@(P pTm lo sTm) -> (,) cSb (Application (sCx, xx, nTy') pDeriv sDeriv)
         where
-          ty     = mempty :=> TLoc lo abvT
-          deriv  = derive1' (tail stream) exCx ptm
-          abvT   = getDerivationT  deriv
-          nDeriv = derive1' (tail stream) exCx t'
+          pRes    = derive1' (tail stream) exCx exSb pTm
+          pDeriv  = snd pRes
+          pSb     = fst pRes
+
+          sRes    = derive1' (tail stream) exCx pSb sTm
+          sDeriv  = snd sRes
+          sSb     = fst sRes
+          
+          sTy     = getDType sDeriv
+          pTy     = getDType pDeriv
+
+          npTy    = applyTSub sSb pTy          
+          
+          npTy'   = TEmp :=> TLoc lo npTy
+
+          nTy     = either (error.show) snd $ npTy' `fuse` sTy
+          cast    = either (error.show) fst $ npTy' `fuse` sTy
+
+          cSb     = sSb ++ cast
+          sCx     = applySubsC cSb exCx
+          nTy'    = applyTSub cSb nTy
+          
 
 testD1 :: String -> IO ()
 testD1 = putStrLn . pShow . derive1 . parseFMC
@@ -388,11 +426,16 @@ merge exSubs x y =
         TVec (yy':yys')  -> (finalSubs, finalX', interYY' <> finalYY')
                               where
                                 (interSubs, interX', interYY') = merge exSubs x' yy'
-                                (finalSubs, finalX', finalYY') = merge interSubs interX' (TVec yys')                                
-        iy' :=> oy'      -> if x' == y' then (exSubs, mempty, mempty)
-                            else (finalSubs, finalL, finalR)
+                                (finalSubs, finalX', finalYY') = merge interSubs interX' (TVec yys')
+                                
+        iy' :=> oy'      -> if x'' == y'' then (exSubs, mempty, mempty)
+                            else if (finalSubs, finalL, finalR) == (finalSubs, TEmp, TEmp)
+                                 then (finalSubs, mempty, mempty)
+                                 else (exSubs, x'', y'')
                               where
-                                (intSubs,   leftIX',  leftIY' ) = merge exSubs ix' iy'
+                                x'' = normalForm x'
+                                y'' = normalForm y'
+                                (intSubs,   leftIX',  leftIY' ) = merge exSubs  ix' iy'
                                 (finalSubs, rightIX', rightIY') = merge intSubs ox' oy'
                                 finalL                          = normaliseT $ leftIX'  <> leftIY' 
                                 finalR                          = normaliseT $ rightIX' <> rightIY'
@@ -418,28 +461,30 @@ fuse = \case
   x@(xi :=> xo) -> \case
     y@(yi :=> yo) ->
       let
-        (subs, remainY, remainX) = merge [] yi xo
-        res                      = (subs, normaliseT remainX, normaliseT remainY)
+          res = merge [] yi xo
       in
         case res of
-          (_,TEmp,_) -> pure $ (,) subs ((xi <> remainY) :=> yo)
-          (_,_,TEmp) -> pure $ (,) subs (xi :=> (yo <> remainX))
-          _ -> if diffLoc remainX remainY then Right $ (,) subs ((xi <> remainY) :=> (yo <> remainX))
-               else Left . ErrFuse $ "cannot fuse " ++ show x ++ " "  ++ show y ++ " result: " ++ show res
+          (subs,rY,TEmp) -> pure $ (,) subs ((xi <> rY) :=> yo)
+          (subs,TEmp,rX) -> pure $ (,) subs (xi :=> (yo <> rX))
+          (subs,rX,rY)   -> if diffLoc rX rY
+                            then Right $ (,) subs ((xi <> rY) :=> (yo <> rX))
+                            else Left . ErrFuse $ "cannot fuse " ++ show x ++ " "  ++ show y ++ " result: " ++ show res
     y@(TVar _) -> Right ([(y,x)],mempty)
     y          -> Left . ErrFuse $ "cannot fuse " ++ show x ++ " and " ++ show y ++ ". Wrong type Types - Use Function Types"
   x -> \y      -> Left . ErrFuse $ "cannot fuse " ++ show x ++ " and " ++ show y
       
 applyTSub :: [TSubs] -> T -> T
-applyTSub = \case
-  [] -> id
-  xx@((xi,xo):xs) -> \case
-     TEmp -> TEmp
-     y@(TCon _ ) -> y
-     TLoc l t -> TLoc l (applyTSub xx t)
-     TVec y -> TVec $ applyTSub xx <$> y
-     yi :=> yo -> applyTSub xx yi :=> applyTSub xx yo
-     y@(TVar _) -> if y == xi then applyTSub xs xo else applyTSub xs y         
+applyTSub subs ty = normaliseT $ aux subs ty 
+  where
+    aux = \case
+      [] -> id
+      xx@((xi,xo):xs) -> \case
+        TEmp -> TEmp
+        y@(TCon _ ) -> y
+        TLoc l t -> TLoc l (applyTSub xx t)
+        TVec y -> TVec $ applyTSub xx <$> y
+        yi :=> yo -> applyTSub xx yi :=> applyTSub xx yo
+        y@(TVar _) -> if y == xi then applyTSub xs xo else applyTSub xs y         
 
 getType :: Term -> Context -> Either TError T
 getType = \case
@@ -484,23 +529,20 @@ setContextR = \case
 --  Fusion      (c,a,b) l r -> \c' -> Fusion      (c',a,b) (setContextR l c') (setContextR r c')
 
 
+applyTSubsD :: [TSubs] -> Derivation -> Derivation
+applyTSubsD subs = {-applyDTypeSubs subs .-}  applyDCxSubs subs
+
+applyDCxSubs :: [TSubs] -> Derivation -> Derivation
+applyDCxSubs s d = res 
+  where
+    ctx    = getContext d
+    newCtx = applySubsC s ctx
+    res    = setContext d newCtx
+  
 applySubsC :: [TSubs] -> Context -> Context
 applySubsC x y = (\(b,bt) -> (b, applyTSub x bt)) <$> y 
+
 {-
-applyTSubsD :: [TSubs] -> Derivation -> Derivation
-applyTSubsD subs = applyDTypeSubs subs .  applyContextSubs subs
-  where
-    applyContextSubs :: [TSubs] -> Derivation -> Derivation
-    applyContextSubs s d = res 
-      where
-        ctx    = getContext d
-        newCtx = applySubsC subs ctx
-        res    = setContext d newCtx
-  
-        applySubsC :: [TSubs] -> Context -> Context
-        applySubsC x y = (\(b,bt) -> (b, applyTSub x bt)) <$> y 
-
-
     applyDTypeSubs :: [TSubs] -> Derivation -> Derivation
     applyDTypeSubs s = \case
       d@(Star _) -> newD
@@ -529,14 +571,6 @@ applyTSubsD subs = applyDTypeSubs subs .  applyContextSubs subs
           newT = applyTSub s oldT
           newD = case setDerivationT d newT of
             Application d' n -> Application d' (applyDTypeSubs s n) (applyDTypeSubs s n)
-            _ -> error "This never happens"
-          
-      d@(Fusion _ _ _) -> newD
-        where
-          oldT = getDerivationT d 
-          newT = applyTSub s oldT
-          newD = case setDerivationT d newT of
-            Fusion d' l r -> Fusion d' (applyDTypeSubs s l) (applyDTypeSubs s r)
             _ -> error "This never happens"
 -}          
 allCtx :: Derivation -> Context
@@ -585,7 +619,7 @@ instance Pretty Derivation where
                     [] -> []
                     c -> (flip (++) " ") . mconcat $ sCtx <$> c
         showJ :: Judgement -> String
-        showJ (cx, n, t) = mconcat $ showC cx {-"Γ "-} : "|- " : show n : " : " : showT t : []
+        showJ (cx, n, t) = mconcat $ showC cx : "|- " : pShow n : " : " : showT t : []
         showL :: Int -> Int -> Int -> String
         showL l m r = mconcat $ replicate l ' ' : replicate m '-' : replicate r ' ' : []
         showD :: Derivation -> (Int, Int, Int, [String])
@@ -593,7 +627,6 @@ instance Pretty Derivation where
         showD (Variable j d') =  addrule (showJ j) (showD d')
         showD (Abstraction j d') = addrule (showJ j) (showD d')
         showD (Application j d' e) = addrule (showJ j) (sidebyside (showD d') (showD e))
---        showD (Fusion j d' e) = addrule (showJ j) (sidebyside (showD d') (showD e))
         addrule :: String -> (Int, Int, Int, [String]) -> (Int, Int, Int, [String])
         addrule x (l, m, r, xs)
             | k <= m =
@@ -612,3 +645,39 @@ instance Pretty Derivation where
                 (l1, m1 + r1 + 2 + l2 + m2, r2, [x ++ "  " ++ y | (x, y) <- zip d1 (extend (l2 + m2 + r2) d2)])
             | otherwise =
                 (l1, m1 + r1 + 2 + l2 + m2, r2, [x ++ " " ++ y | (x, y) <- zip (extend (l1 + m1 + r1) d1) d2])
+
+
+pShow' :: Derivation -> String
+pShow' d = unlines (reverse strs)
+  where
+    (_, _, _, strs) = showD d
+    showT :: T -> String
+    showT = pShow
+    showJ :: Judgement -> String
+    showJ (cx, n, t) = mconcat $ "Γ " : "|- " : show n : " : " : showT t : []
+    showL :: Int -> Int -> Int -> String
+    showL l m r = mconcat $ replicate l ' ' : replicate m '-' : replicate r ' ' : []
+    showD :: Derivation -> (Int, Int, Int, [String])
+    showD (Star j) = (0, k, 0, [s, showL 0 k 0]) where s = showJ j; k = length s
+    showD (Variable j d') =  addrule (showJ j) (showD d')
+    showD (Abstraction j d') = addrule (showJ j) (showD d')
+    showD (Application j d' e) = addrule (showJ j) (sidebyside (showD d') (showD e))
+--        showD (Fusion j d' e) = addrule (showJ j) (sidebyside (showD d') (showD e))
+    addrule :: String -> (Int, Int, Int, [String]) -> (Int, Int, Int, [String])
+    addrule x (l, m, r, xs)
+        | k <= m =
+            (ll, k, rr, (replicate ll ' ' ++ x ++ replicate rr ' ') : showL l m r : xs)
+        | k <= l + m + r =
+            (ll, k, rr, (replicate ll ' ' ++ x ++ replicate rr ' ') : showL ll k rr : xs)
+        | otherwise =
+            (0, k, 0, x : replicate k '-' : [replicate (- ll) ' ' ++ y ++ replicate (- rr) ' ' | y <- xs])
+      where
+        k = length x; i = div (m - k) 2; ll = l + i; rr = r + m - k - i
+    extend :: Int -> [String] -> [String]
+    extend i strs' = strs' ++ repeat (replicate i ' ')
+    sidebyside :: (Int, Int, Int, [String]) -> (Int, Int, Int, [String]) -> (Int, Int, Int, [String])
+    sidebyside (l1, m1, r1, d1) (l2, m2, r2, d2)
+        | length d1 > length d2 =
+            (l1, m1 + r1 + 2 + l2 + m2, r2, [x ++ "  " ++ y | (x, y) <- zip d1 (extend (l2 + m2 + r2) d2)])
+        | otherwise =
+            (l1, m1 + r1 + 2 + l2 + m2, r2, [x ++ " " ++ y | (x, y) <- zip (extend (l1 + m1 + r1) d1) d2])

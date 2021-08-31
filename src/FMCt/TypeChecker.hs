@@ -501,7 +501,7 @@ buildContext eCtx =
                       , TLoc (Lo "if") $ TVar "ifVar1"
                       , TLoc (Lo "if") $ TVar "ifVar1"
                       ] :=>
-                  TVec [ TVar "ifVar1"]
+                  TVec [ TLoc La $ TVar "ifVar1"]
      in \case
             V x St -> do
                 let rInt = (readMaybe x) :: Maybe Int
