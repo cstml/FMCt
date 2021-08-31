@@ -6,6 +6,7 @@ module FMCt.TypeChecker2
   (
     derive2,
     getTermType,
+    pShow',
   ) where
 import FMCt.Syntax
 import FMCt.Parsing

@@ -2,7 +2,7 @@ module FMCt.Web.Pages.Derive (pDerive) where
 
 import Data.List (unfoldr)
 import qualified Data.Text.Lazy as LA
-import FMCt (derive2, pShow, getTermType)
+import FMCt (derive2, pShow, getTermType, pShow')
 import FMCt.Parsing (parseFMC', parseFMCtoString)
 import FMCt.Web.Components.Brick (brick)
 import FMCt.Web.Components.RegularPage (regularPage)
@@ -41,7 +41,7 @@ pDerive term = sDerivePage
             Left e -> LU.toHtml . show $ e
             Right pTerm -> brick ("parsed-div" :: String) ("Term Derivation" :: LA.Text) ("" :: LA.Text) deriv
               where
-                deriv = either (rBr . show) (rBr . pShow) $ derive2 pTerm
+                deriv = either (rBr . show) (rBr . pShow') $ derive2 pTerm
 
     termTypeBox :: LU.Html ()
     termTypeBox =
@@ -51,9 +51,7 @@ pDerive term = sDerivePage
               where
                 deriv = case getTermType pTerm of
                   Left e -> show e 
-                  Right ty -> pShow pTerm ++ " : "++ pShow ty
-                  
-                
+                  Right ty -> pShow pTerm ++ " : "++ pShow ty                                  
                 
 
     rBr :: String -> LU.Html ()
