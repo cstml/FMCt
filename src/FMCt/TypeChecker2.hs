@@ -1,11 +1,15 @@
 {-# OPTIONS_GHC -Wno-unused-imports #-}
 {-# OPTIONS_GHC -Wno-unused-matches #-}
 {-# LANGUAGE TupleSections #-}
-module FMCt.TypeChecker2 where 
+
+module FMCt.TypeChecker2 
+  (
+    derive2,
+    getTermType,
+  ) where
 import FMCt.Syntax
 import FMCt.Parsing
 import FMCt.TypeChecker (
---  Derivation(..),
   freshVarTypes,
   splitStream,
   TError(..),
@@ -25,6 +29,8 @@ type Context = [(Vv, T)]
 type Judgement = (Context, Term, T)
 
 type Term = Tm
+           
+type TSubs = (T,T)
 
 data Derivation
     = Star        !Judgement
@@ -174,187 +180,136 @@ derive1 term = snd $ derive1' freshVarTypes pBCx emptySb term
           cSb     = sSb ++ cast
           sCx     = applySubsC cSb exCx
           nTy'    = applyTSub cSb nTy
-          
 
+type Result a = Either TError a
+
+-- | Same as "derive1" but safe, and applies all substitutions at the end.
+derive2 :: Term -> Result Derivation
+derive2 term = do
+  let (ppTerm,lTStream) = replaceInfer freshVarTypes term
+  bCx           <- pBCx ppTerm                             -- pre build context
+  result        <- derive2' lTStream bCx emptySb ppTerm    -- derive
+  let derivation = snd result                              -- take final derivation
+  let casts      = fst result                              -- take the final casts 
+  return $ applyTSubsD casts derivation                    -- apply them to the derivation and return it 
+  
+  where
+    emptySb = []
+
+    -- | Pre builds the context by adding the constants and the binder types to the context.
+    pBCx termR  =  do
+      t1 <- buildContext emptyCx termR -- add constants
+      let t2 = parseBinders termR      
+      chkUnique $ t1 ++ t2
+
+    -- | Replace the infer types with new fresh types so they do not overlap. 
+    replaceInfer :: [T] -> Term -> (Term,[T]) -- ^ Return a Tuple formed out of the new pre-processed term and the stream left.
+    replaceInfer stream t = case t of
+      St      -> (St    , stream)
+      V a n   -> (V a nN, rStr)
+        where
+          sStr = splitStream stream
+          lStr = fst sStr
+          rStr = snd sStr
+          nN   = fst $ replaceInfer lStr n
+      P p l n -> (P nP l nN, lStr)
+        where
+          sStr  = splitStream stream
+          lStr  = snd sStr
+          sStr' = splitStream . fst $ sStr
+          str1  = fst sStr'
+          str2  = snd sStr'
+          nP    = fst $ replaceInfer str1 p
+          nN    = fst $ replaceInfer str2 n
+
+      B b ty l n -> (B b nT l nN, rStr)
+        where
+          sStr = splitStream stream
+          lStr = fst sStr
+          rStr = snd sStr
+          nT = case ty of
+            TVar "inferA" :=> TVar "inferB" -> head lStr
+            _ -> ty
+          nN = fst $ replaceInfer (tail lStr) n            
+    
+    chkUnique :: Context -> Result Context
+    chkUnique x = if length x == length (nub $ fmap fst x)
+                  then pure x
+                  else  Left $ ErrOverride "Variable double bind."
+                            
+    parseBinders = \case
+      St          -> []
+      B bi t _ t' -> (bi,t) : parseBinders t'
+      P t _ t'    -> parseBinders t ++ parseBinders t'
+      V _ t'      -> parseBinders t'
+
+    derive2' :: [T] -> Context -> [TSubs] -> Term -> Result ([TSubs],Derivation)
+    derive2' stream exCx exSb = \case
+      
+      St -> do 
+        let ty = TEmp :=> TEmp
+        let pbC = exCx
+        return $ (,) exSb (Star (pbC, St, ty))
+      
+      x@(V bi t') -> do
+        uRes      <- derive2' (tail stream) exCx exSb t'
+        let nDeriv = snd uRes
+        let upSb   = fst uRes                
+        let upCx   = applySubsC upSb exCx
+        ty        <- getType (V bi St) upCx
+        let upType = getDType nDeriv    
+        fusion    <- ty `fuse` upType
+        let cast   = fst fusion
+        let rTy    = snd fusion
+        let nSb    = upSb ++ cast
+        let nCx    = applySubsC nSb upCx
+        let rTy'   = applyTSub  nSb rTy                               
+        return $ (,) nSb (Variable (nCx, x, rTy') nDeriv)          
+
+          
+      x@(B bi _ lo t') -> do
+        uRes   <- derive2' (tail stream) exCx exSb t'
+        let nDeriv = snd uRes
+        let upSb   = fst uRes        
+        let upCx   = applySubsC upSb exCx
+        let upType = getDType nDeriv
+        ty'       <- getType (V bi St) upCx
+        let ty     = TLoc lo ty' :=> mempty
+        nTy       <- snd <$> ty  `fuse` upType
+        cast      <- fst <$> ty' `fuse` upType
+        let nCx    = applySubsC cast upCx
+        let nSb    = exSb ++ cast      
+        return $ (,) nSb (Abstraction (nCx, x, nTy) nDeriv)
+            
+      xx@(P pTm lo sTm) -> do
+        pRes       <- derive2' (tail stream) exCx exSb pTm
+        let pDeriv  = snd pRes
+        let pSb     = fst pRes
+        sRes       <- derive2' (tail stream) exCx pSb sTm
+        let sDeriv  = snd sRes
+        let sSb     = fst sRes          
+        let sTy     = getDType sDeriv
+        let pTy     = getDType pDeriv            
+        let npTy    = applyTSub sSb pTy                                
+        let npTy'   = TEmp :=> TLoc lo npTy            
+        nTy        <- snd <$> npTy' `fuse` sTy
+        cast       <- fst <$> npTy' `fuse` sTy            
+        let cSb     = sSb ++ cast
+        let sCx     = applySubsC cSb exCx
+        let nTy'    = applyTSub cSb nTy                    
+        return $ (,) cSb (Application (sCx, xx, nTy') pDeriv sDeriv)
+          
 testD1 :: String -> IO ()
 testD1 = putStrLn . pShow . derive1 . parseFMC
 
-{-
-unionC :: Context -> Context -> Context
-unionC x y = applySubsC (mergeCx x y) x
-  where
-      mergeCx []     y = []
-      mergeCx (x:xs) y = aux x y ++ mergeCx xs y
+testD2 :: String -> IO ()
+testD2 str = do
+  term       <- return $ parseFMC str
+  derivation <- return $ derive2 term
+  either (putStrLn . show) (putStrLn) $ pShow <$> derivation
 
-      aux x [] = []
-      aux x@(bi,t) ((bi',t'):ys)
-        | bi == bi'  = view _1 (merge [] t t')
-        | otherwise  = aux x ys
-
-{-
-unionS :: Derivation -> Derivation
-unionS x = case x of
-  Fusion (cx,t,ty) dL dR -> Fusion (nCx,t,ty) dL'' dR''
-    where
-      dL' = unionS dL
-      dR' = unionS dR
-      cL = getContext dL'
-      cR = getContext dR'
-      nCx = cL `unionC` cR
-      dL'' = setContextR dL' nCx
-      dR'' = setContextR dR' nCx    
-  y -> y
--}
-
-testU :: String -> IO ()
-testU x = do
-  term  <- return $ parseFMC x
-  deriv <- return $ derive0 term
-  putStrLn . pShow $ deriv
---  putStrLn . pShow  $ unionS deriv
-
-
-unionD :: Derivation -> Either TError Derivation
-unionD = \case
-  deriv@(Fusion (cx, x, ty) dL dR) -> fuseResult
-    where
-      dL' = unionD dL
-      dR' = unionD dR
-      fuseResult  = case (dL',dR') of
-        (Left e, _ )   -> Left e
-        (_,Left e)     -> Left e
-        (Right ndL, Right ndR) -> nfuseResult
-          where
-            tL = getDType ndL
-            tR = getDType ndR
-
-            fusion = fuse tL tR
-  
-            nfuseResult = either Left aux $ fusion 
-  
-            aux :: ([TSubs],T) -> Either TError Derivation
-            aux (s,t) = Right $ applyTSubsD s nDeriv 
-              where
-                nDeriv = Fusion(cx,x,t) dL dR
-  Abstraction (cx,x,ty) n -> Abstraction (cx,x,ty) <$> unionD n
-  Application (cx,x,ty) n -> Application (cx,x,ty) <$> unionD n
-  x -> pure x
-
-  
-derive1 :: Term -> Either TError Derivation
-derive1 term = derive1' freshVarTypes pBCx term
-  where
-    pBCx = either (const emptyCx) id $ buildContext emptyCx term
-    
-    derive1' :: [T] -> Context -> Term -> Either TError Derivation
-    derive1' stream exCx = \case
-
-      St -> result
-        where
-          ty =  getType St exCx
-          result =  (Star . (exCx, St, )) <$> ty
-      
-      x@(V bi St) -> result
-        where
-          ty = either (const $ head stream) id $ getType x exCx
-          nCx = toList . fromList $ (bi,ty) : exCx 
-          result = pure $ Variable  (nCx, x, ty)
-            
-      x@(V bi tm) -> result
-        where
-          (lStr,rStr) = splitStream $ tail stream
-          
-          derivL = derive1' lStr exCx (V bi St)          
-          lCx = getContext <$> derivL
-          
-          derivR = flat $ derive1' rStr <$> lCx <*> pure tm          
-
-          rCx = getContext <$> derivR
-          
-          tL = getDerivationT <$> derivL
-          tR = getDerivationT <$> derivR
-          
-          fusionR = flat $ pure fuse <*> tL <*> tR
-          ty = snd <$> fusionR
-          sub = fst <$> fusionR
-          
-          resultD = pure Fusion <*> ((,x,) <$> rCx <*> ty) <*> derivL <*> derivR
-          result = applyTSubsD <$> sub <*> resultD
-
-      x@(B bi bTy lo St) -> result
-        where
-          ty = TLoc lo bTy :=> mempty
-          nCx = (bi,bTy) : exCx
-          uD = Variable (nCx, V bi St, bTy)
-          result = pure $ Abstraction (nCx, x,ty) uD
-
-      x@(B bi bTy lo tm) -> result 
-        where
-          (lStr,rStr) = splitStream $ tail stream
-          
-          derivL = derive1' lStr exCx (B bi bTy lo St)          
-
-          lCx = getContext <$> derivL
-          
-          derivR = flat $ derive1' rStr <$> lCx <*> pure tm          
-
-          rCx = getContext <$> derivR
-          
-          tL = getDerivationT <$> derivL
-          tR = getDerivationT <$> derivR
-          
-          fusionR = flat $ pure fuse <*> tL <*> tR
-          ty = snd <$> fusionR
-          sub = fst <$> fusionR
-          
-          resultD = pure Fusion <*> ((,x,) <$> rCx <*> ty) <*> derivL <*> derivR
-          result = applyTSubsD <$> sub <*> resultD
-          
-      x@(P ptm lo St) -> result
-        where
-          aboveD = derive1' stream exCx ptm
-
-          aboveT = getDerivationT <$> aboveD
-          
-          ty = (\z -> mempty :=> TLoc lo z) <$> aboveT
-          
-          aboveCx = getContext <$> aboveD
-
-          result = pure Application <*> ((,x,) <$> aboveCx <*> ty) <*> aboveD
-          
-      x@(P ptm lo tm) -> result
-        where
-          (lStr,rStr) = splitStream $ tail stream
-          
-          derivL = derive1' lStr exCx (P ptm lo St)          
-
-          lCx = getContext <$> derivL
-          
-          derivR = flat $ derive1' rStr <$> lCx <*> pure tm          
-
-          rCx = getContext <$> derivR
-          
-          tL = getDerivationT <$> derivL
-          tR = getDerivationT <$> derivR
-          
-          fusionR = flat $ pure fuse <*> tL <*> tR
-          ty = snd <$> fusionR
-          sub = fst <$> fusionR
-          
-          resultD = pure Fusion <*> ((,x,) <$> rCx <*> ty) <*> derivL <*> derivR
-          result = applyTSubsD <$> sub <*> resultD
--}
 testD0 :: String -> IO ()
 testD0 = putStrLn . pShow . derive0 . parseFMC
-{-
-testD1 :: String -> IO ()
-testD1 x = either (putStrLn . show) (putStrLn . pShow) <$> unionD $ derive0 $ parseFMC x
-
-testD1' :: String -> IO ()
-testD1' x = either (putStrLn . show) (putStrLn . pShow) <$>  derive1 $ parseFMC x
--}
-           
-type TSubs = (T,T)
 
 merge :: [TSubs]         -- ^ Substitutions to be made in both types.
         -> T             -- ^ The consuming Type.
@@ -369,7 +324,7 @@ merge exSubs x y =
   in
     case x' of      
       TEmp -> case y' of
---        TVar _ ->  ((y',mempty):exSubs,mempty,y')
+        TVar _ ->  ((y',mempty):exSubs,mempty,y')
         _      ->  (exSubs,mempty,y') -- mempty doesn't change anything else        
       
       TVec [] -> merge exSubs TEmp y
@@ -491,25 +446,30 @@ getType = \case
     t@(V b St) -> \case
         [] -> Left $ ErrUndefT $
               mconcat [ "Cannot Find type for binder: ", show b
-                      , " in context. Have you defined it prior to calling it ?" ]
+                      , " in context. Have you defined it prior to calling it?" ]
         ((b', ty) : xs) -> if b == b' then pure ty else getType t xs
     St -> \_ -> pure $ mempty :=> mempty
     t -> \_ -> Left . ErrNotBinder $ mconcat ["Attempting to get type of:", show t]
 
 getDType :: Derivation -> T
 getDType = \case 
-  Star  (_,_,t) -> t
-  Variable  (_,_,t) _ -> t
-  Abstraction  (_,_,t) _ -> t
---  Fusion  (_,_,t) _ _ -> t
+  Star        (_,_,t)     -> t
+  Variable    (_,_,t) _   -> t
+  Abstraction (_,_,t) _   -> t
   Application (_,_,t) _ _ -> t
+
+setDType :: Derivation -> T -> Derivation
+setDType d t = case d of 
+  Star        (a,b,_)     -> Star (a,b,t)
+  Variable    (a,b,_) c   -> Variable (a,b,t) c
+  Abstraction (a,b,_) c   -> Abstraction (a,b,t) c
+  Application (a,b,_) c e -> Application (a,b,t) c e
 
 getContext :: Derivation -> Context
 getContext = \case
-  Star (c,_,_)            -> c
-  Variable (c,_,_) _      -> c
+  Star        (c,_,_)     -> c
+  Variable    (c,_,_) _   -> c
   Abstraction (c,_,_) _   -> c
---  Fusion (c,_,_) _ _      -> c
   Application (c,_,_) _ _ -> c
 
 setContext :: Derivation -> Context -> Derivation
@@ -518,7 +478,6 @@ setContext = \case
   Variable    (c,a,b) n   -> \c' -> Variable    (c',a,b) n
   Abstraction (c,a,b) n   -> \c' -> Abstraction (c',a,b) n
   Application (c,a,b) u r -> \c' -> Application (c',a,b) u r
---  Fusion      (c,a,b) l r -> \c' -> Fusion      (c',a,b) l r
 
 setContextR :: Derivation -> Context -> Derivation
 setContextR = \case
@@ -526,12 +485,28 @@ setContextR = \case
   Variable    (c,a,b) n   -> \c' -> Variable    (c',a,b) (setContextR n c')
   Abstraction (c,a,b) n   -> \c' -> Abstraction (c',a,b) (setContextR n c')
   Application (c,a,b) u r -> \c' -> Application (c',a,b) (setContextR u c') (setContextR r c')
---  Fusion      (c,a,b) l r -> \c' -> Fusion      (c',a,b) (setContextR l c') (setContextR r c')
-
 
 applyTSubsD :: [TSubs] -> Derivation -> Derivation
-applyTSubsD subs = {-applyDTypeSubs subs .-}  applyDCxSubs subs
+applyTSubsD subs = subCx subs . subTy subs
+  where
+    subCx :: [TSubs] -> Derivation -> Derivation
+    subCx s d = do
+      let cx = getContext d
+      let nc = applySubsC s cx
+      setContextR d nc
+      
+    subTy :: [TSubs] -> Derivation -> Derivation
+    subTy s d = case d of 
+      Star _                  -> d
+      Variable    (a,b,t) n   -> Variable    (a,b, applyTSub s t) (subTy s n)
+      Abstraction (a,b,t) n   -> Abstraction (a,b, applyTSub s t) (subTy s n)
+      Application (a,b,t) p n -> Application (a,b, applyTSub s t) (subTy s p) (subTy s n)                                 
 
+getTermType :: Term -> Result T
+getTermType t = do
+  deriv <- derive2 t
+  return $ getDType deriv
+      
 applyDCxSubs :: [TSubs] -> Derivation -> Derivation
 applyDCxSubs s d = res 
   where
@@ -542,44 +517,12 @@ applyDCxSubs s d = res
 applySubsC :: [TSubs] -> Context -> Context
 applySubsC x y = (\(b,bt) -> (b, applyTSub x bt)) <$> y 
 
-{-
-    applyDTypeSubs :: [TSubs] -> Derivation -> Derivation
-    applyDTypeSubs s = \case
-      d@(Star _) -> newD
-        where
-          oldT = getDerivationT d 
-          newT = applyTSub s oldT
-          newD = setDerivationT d newT
-
-      d@(Variable _ _) -> newD
-        where
-          oldT = getDerivationT d 
-          newT = applyTSub s oldT
-          newD = setDerivationT d newT
-          
-      d@(Abstraction _ _) -> newD
-        where
-          oldT = getDerivationT d 
-          newT = applyTSub s oldT
-          newD = case setDerivationT d newT of
-            Abstraction d' n -> Abstraction d' (applyDTypeSubs s n)
-            _ -> error "This never happens"
-          
-      d@(Application _ _ _) -> newD
-        where
-          oldT = getDerivationT d 
-          newT = applyTSub s oldT
-          newD = case setDerivationT d newT of
-            Application d' n -> Application d' (applyDTypeSubs s n) (applyDTypeSubs s n)
-            _ -> error "This never happens"
--}          
 allCtx :: Derivation -> Context
-allCtx = \case
-  x@(Star _)          -> getContext x
-  x@(Variable _ _)    -> getContext x
-  x@(Application _ u r) -> getContext x ++ allCtx u  ++ allCtx r
-  x@(Abstraction _ d) -> getContext x ++ allCtx d
---  x@(Fusion _ dL dR)  -> getContext x ++ allCtx dR ++ allCtx dL
+allCtx x = case x of 
+  Star _            -> getContext x
+  Variable _ _      -> getContext x
+  Application _ u r -> getContext x ++ allCtx u  ++ allCtx r
+  Abstraction _ d   -> getContext x ++ allCtx d
 
 getDerivationT :: Derivation -> T
 getDerivationT = \case 
@@ -587,7 +530,6 @@ getDerivationT = \case
   Variable (_,_,t)    _   -> t
   Application (_,_,t) _ _ -> t
   Abstraction (_,_,t) _   -> t
---  Fusion (_,_,t) _ _      -> t
 
 setDerivationT :: Derivation -> T -> Derivation
 setDerivationT = \case 
@@ -595,14 +537,12 @@ setDerivationT = \case
   Variable    (a,b,t) n    -> \t' -> Variable    (a,b,t') n
   Application (a,b,t) u r  -> \t' -> Application (a,b,t') u r 
   Abstraction (a,b,t) n    -> \t' -> Abstraction (a,b,t') n
---  Fusion      (a,b,t) l r  -> \t' -> Fusion      (a,b,t') l r 
 
 getLocation :: Term -> Lo
 getLocation = \case
   P _ l _ -> l
   B _ _ l _ -> l
   x -> error $ "should't be reaching for location in term: " ++ show x ++ ".This should never happen."
-
 
 -- Show Instance
 -- Inspired by previous CW.

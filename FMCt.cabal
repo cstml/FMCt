@@ -28,9 +28,31 @@ common common-specs
     containers,
     parsec,
     lens,
+    
+-- From the Scotty 
+  build-depends:       
+    base,
+    scotty,
+    text,
+    clay,
+    lucid,
+    aeson,
+    wai-extra,
+    http-types,  
                         
   default-extensions:
     LambdaCase
+
+-- from the Scotty      
+  default-extensions:   OverloadedStrings,
+                        LambdaCase
+                        FlexibleInstances 
+                        FlexibleContexts 
+                        RankNTypes 
+                        ScopedTypeVariables 
+                        TypeApplications 
+                        TypeFamilies 
+                        InstanceSigs
                         
   default-language:
     Haskell2010
@@ -47,6 +69,7 @@ common common-specs
     FMCt.TypeChecker
     FMCt.TypeChecker2
     FMCt.Aux.Pretty
+    FMCt.Web
         
 library
   import:            common-specs                        

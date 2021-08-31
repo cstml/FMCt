@@ -2,7 +2,7 @@ module FMCt.Web.Pages.Derive (pDerive) where
 
 import Data.List (unfoldr)
 import qualified Data.Text.Lazy as LA
-import FMCt (derive)
+import FMCt (derive2, pShow, getTermType)
 import FMCt.Parsing (parseFMC', parseFMCtoString)
 import FMCt.Web.Components.Brick (brick)
 import FMCt.Web.Components.RegularPage (regularPage)
@@ -21,6 +21,7 @@ pDerive term = sDerivePage
         LU.body_ $ do
             termForm
             parsedBox
+            termTypeBox
             derivationBox
 
     termForm :: LU.Html ()
@@ -32,15 +33,28 @@ pDerive term = sDerivePage
     parsedBox =
         brick ("parsed-div" :: LA.Text) ("Parsed Term" :: LA.Text) ("" :: LA.Text) pTerm
       where
-        pTerm = either (LU.toHtml . show) (LU.toHtml . show) $ (parseFMC' . LA.unpack) term
+        pTerm = either (LU.toHtml . show) (LU.toHtml . pShow) $ (parseFMC' . LA.unpack) term
 
     derivationBox :: LU.Html ()
     derivationBox =
         case (parseFMC' . LA.unpack) term of
             Left e -> LU.toHtml . show $ e
-            Right pTerm -> brick ("parsed-div" :: String) ("Parsed Term" :: LA.Text) ("" :: LA.Text) deriv
+            Right pTerm -> brick ("parsed-div" :: String) ("Term Derivation" :: LA.Text) ("" :: LA.Text) deriv
               where
-                deriv = either (rBr . show) (rBr . show) $ derive pTerm
+                deriv = either (rBr . show) (rBr . pShow) $ derive2 pTerm
+
+    termTypeBox :: LU.Html ()
+    termTypeBox =
+        case (parseFMC' . LA.unpack) term of
+            Left e -> LU.toHtml . show $ e
+            Right pTerm -> brick ("parsed-div" :: String) ("Term-Type" :: LA.Text) ("" :: LA.Text) deriv
+              where
+                deriv = case getTermType pTerm of
+                  Left e -> show e 
+                  Right ty -> pShow pTerm ++ " : "++ pShow ty
+                  
+                
+                
 
     rBr :: String -> LU.Html ()
     rBr str = aux spStr

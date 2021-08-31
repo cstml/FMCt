@@ -1,6 +1,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module FMCt.Web.MainWebsite (mainWebsite) where
+module FMCt.Web.MainWebsite (mainWebsite, mainWebsitePort) where
 
 import Control.Exception
 import Control.Monad.IO.Class
@@ -18,37 +18,8 @@ import Network.Wai.Middleware.RequestLogger
 import qualified Web.Scotty as S (get, html, param, scotty)
 import Web.Scotty.Trans
 
--- Define a custom exception type.
-data Except = Forbidden | NotFound Int | StringEx String | Err SomeException | Err' TError
-    deriving (Show)
-
--- The type must be an instance of 'ScottyError'.
--- 'ScottyError' is essentially a combination of 'Error' and 'Show'.
-instance ScottyError Except where
-    stringError = StringEx
-    showError = fromString . show
-
--- Handler for uncaught exceptions.
-handleEx :: Monad m => Except -> ActionT Except m ()
-handleEx Forbidden = do
-    status status403
-    html "<h1>Scotty Says No</h1>"
-handleEx (NotFound i) = do
-    status status404
-    html $ fromString $ "<h1>Can't find " ++ show i ++ ".</h1>"
-handleEx (StringEx s) = do
-    status status500
-    html $ fromString $ "<h1>" ++ s ++ "</h1>"
-handleEx (Err e) = do
-    status status500
-    html $ fromString $ "<h1>" ++ show e ++ "</h1>"
-handleEx (Err' e) = do
-    status status500
-    html $ fromString $ "<h1>" ++ show e ++ "</h1>"
-
--- | Start serving the website.
-mainWebsite :: IO ()
-mainWebsite = do
+mainWebsitePort :: Int -> IO ()
+mainWebsitePort port = do
     let rMainPage = get "/" $ (html . LU.renderText) pRoot
 
     -- Parse is where the term gets Parsed and Evaluated.
@@ -62,17 +33,19 @@ mainWebsite = do
             (html . LU.renderText . pDerive) term
 
     -- Styling.
-    let css = get "/style.css" $ html mainStylePage
-
-    port <- herokuGetPort -- Fetch the port.
+    let css = S.get "/style.css" $ html mainStylePage    
 
     -- Routes that will be served:
     scottyT port id $ do
-        defaultHandler handleEx
         rMainPage
         rParse
         css
         rDerivationPage
 
-bla :: String -> IO String
-bla = return
+
+-- | Start serving the website.
+mainWebsite :: IO ()
+mainWebsite = do
+    port <- herokuGetPort
+    mainWebsitePort port
+   

@@ -3,8 +3,6 @@
 module FMCt.Web.Components.Brick (brick) where
 
 import Data.String (IsString (..))
-import qualified Data.Text as LA
-import FMCt.Web.Style.StdStylingHeader (stdStylingHeader)
 import qualified Lucid as LU
 import qualified Lucid.Bootstrap as LB
 

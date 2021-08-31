@@ -114,7 +114,7 @@ instance Pretty (Type String) where
         TCon "" -> " "
         TEmp  -> "()" 
         TCon y -> y
-        TVar y -> "_" ++ y 
+        TVar y -> y 
         TVec _x -> mconcat ["(", init $ mconcat $ (flip (++) ",") <$> pShow <$> _x, ")"]
         TLoc l y -> pShow l ++ "(" ++ pShow y ++ ")"
         t1 :=> t2 -> mconcat [pShow t1, " => ", pShow t2]

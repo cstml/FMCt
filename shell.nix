@@ -4,6 +4,19 @@
 , packages ? import ./package.nix
 , pkgs2    ? import <nixpkgs>{}
 }:
+let 
+  # add ghc packages that should be available to the ghc here
+  ghc = (pkgs.haskellPackages.ghcWithPackages (
+    hpkgs: with hpkgs;[
+      zlib
+      scotty
+      aeson
+      blaze-markup
+      aeson
+      lens
+    ]
+  ));
+in
 pkgs.mkShell rec{
   bi1 = with pkgs;[
     ghcid # ghcide
