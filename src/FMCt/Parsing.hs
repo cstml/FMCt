@@ -40,89 +40,76 @@ term :: Parser Tm
 term = choice $ try <$> [variable, application, abstraction, star]
 
 -- | Abstraction Parser.
---
--- Example:
--- >> <x:a>
+-- Example: <x:a>
 abstraction :: Parser Tm
 abstraction = do
     l <- location
     v <- char '<' >> spaces >> many1 alpha <> many alphaNumeric
-    t <- spaces >> char ':' >> termType <* spaces <* char '>'
-    t2 <- spaces >> sepparator >> term
+    t <- spaces >> char ':' >> spaces >> absTy <* spaces <* char '>'
+    t2 <- (spaces >> sepparator >> spaces >> term) <|> omittedStar
     return $ B v t l t2
-
+      where
+        absTy = try higherType <|> try uniqueType
+        
 application :: Parser Tm
 application = do
-    t <- between (char '[') (char ']') term
+    t <- between (char '[') (char ']') (term <|> omittedStar)
     l <- location
-    t2 <- sepparator >> term
+    t2 <- (spaces >> sepparator >> spaces >> term) <|> omittedStar
     return $ P t l t2
 
 variable :: Parser Tm
 variable = do
     x <- spaces >> (many1 alphaNumeric <|> many1 operators)
-    t2 <- spaces >> sepparator >> spaces >> term
+    t2 <- (spaces >> sepparator >> spaces >> term) <|> omittedStar
     return $ V x t2
 
 star :: Parser Tm
-star = (eof >> return St) <|> (char '*' >> return St)
+star =  (eof >> return St)
+        <|> (void (char '*') >> return St)
+
+omittedStar :: Parser Tm
+omittedStar = (string "") >> return St
 
 location :: Parser Lo
-location =
-    choice $
-        try
-            <$> [ string "out" >> return Out
-                , string "in" >> return In
-                , string "rnd" >> return Rnd
-                , string "nd" >> return Nd
-                , string "λ" >> return La
-                , string "^" >> return La
-                , string "_" >> return Ho
-                , string "γ" >> return Ho
-                , do
-                    s <- many1 alphaNumeric
-                    return $ Lo s
-                , string "" >> return La
-                ]
+location = choice $
+  try <$> [ string "out" >> return Out
+          , string "in"  >> return In
+          , string "rnd" >> return Rnd
+          , string "nd"  >> return Nd
+          , string "λ"   >> return La
+          , string "^"   >> return La
+          , string "_"   >> return Ho
+          , string "γ"   >> return Ho
+          , Lo <$> many1 alphaNumeric
+          , string ""    >> return La
+          ]
 
-type TConstant = String
-
--- | Type Constant Parser. Type Constants are simple strings:
---
--- Examples :
--- >> Int
--- >> Bool
-typeConstant :: Parser TConstant
-typeConstant = many1 capsAlpha <> many alphaNumeric
-
--- | Variable Type
---
+-- |  Type
+-- Strings beginning with a small letter 
 -- Example:
 -- >> a
 -- >> b
 variableType :: Parser T
 variableType = do
-    x <- many1 nCapsAlpha <> many alphaNumeric
+    x <- many1 smallCapsAlpha <> many alphaNumeric
     return $ TVar x
 
 -- | Unique Variable type
---
--- Example:
--- >> _
+-- Just an underscore "_"
+-- Example: _
 uniqueType :: Parser T
 uniqueType = do
-    _ <- char '_'
-    return $ TVar "inferA" :=> TVar "inferB"  -- this gets changed to a unique variable at typecheck time 
+    _ <- between spaces spaces $ char '_'
+    return $ TVar "inferA" :=> TVar "inferB"  -- this gets changed to a unique variable at typecheck time
+    -- TODO: preparser that changes these to fresh vars
 
 -- | Constant Type
---
--- Example:
--- >> Int
--- >> A
--- >> B
+-- Strings beginning with a capital letter
+-- Example: Int, A, B
 constantType :: Parser T
 constantType = do
-    x <- typeConstant
+    x <- many1 capsAlpha <> many alphaNumeric
     return $ TCon x
 
 -- | Location Types are Types at a specific location
@@ -143,41 +130,47 @@ locationType = do
 -- >> a b c
 vectorType :: Parser T
 vectorType = do
-    t <-
-        between
-            (spaces >> (char '('))
-            (spaces >> (char ')'))
-            (termType `sepBy1` (((char ' ') <* spaces) <|> (spaces *> char ',' <* spaces)))
+    t <- between
+         (spaces >> (char '('))
+         (spaces >> (char ')'))
+         (termType `sepBy1` (((char ' ') <* spaces) <|> (spaces *> char ',' <* spaces)))
     return $ TVec t
 
 -- | Empty type is empty
 --
--- Examples:
--- e => e
--- " " => e
+-- Examples: e => e,  ()=>e
 emptyType :: Parser T
 emptyType = do
-    void (char 'e') <|> spaces
+    _ <-  (spaces >> string "e") <|> string "()"
     return $ TEmp
-
--- nestedType :: Parser T
--- nestedType = do
---   l <- location
---   ts <- between (spaces >> char '(' >> spaces) (spaces >> char ')' >> spaces) termType
---   return $ TLoc l ts
 
 higherType :: Parser T
 higherType = do
-    ts <- between (char '(') (char ')') (termType `sepBy1` (spaces >> string "=>" >> spaces))
-    return $ foldr1 (:=>) ts
+  --between (char '(') (char ')') $ do 
+      t1 <- termType'
+      _  <- spaces >> string "=>" >> spaces
+      t2 <- termType'
+      return $ t1 :=> t2
 
--- flatHigherType :: Parser T
--- flatHigherType = do
---     ts <- termType `sepBy1` (spaces >> string "=>" >> spaces)
---     return $ foldr1 (:=>) ts
-
+-- | All Types
 termType :: Parser T
-termType = try higherType <|> try vectorType <|> try locationType <|> try constantType <|> try variableType <|> try uniqueType <|> emptyType 
+termType = try higherType
+           <|> try emptyType 
+           <|> try vectorType
+           <|> try locationType
+           <|> try constantType
+           <|> try variableType
+           <|> try uniqueType
+
+-- | Selected types
+termType' :: Parser T
+termType' = try vectorType
+           <|> try emptyType 
+           <|> try locationType
+           <|> try constantType
+           <|> try variableType
+
+
 
 --------------------------------------------------------------------------------
 -- Aux
@@ -190,9 +183,8 @@ alpha = oneOf $ ['a' .. 'z'] ++ ['A' .. 'Z']
 capsAlpha :: Parser Char
 capsAlpha = oneOf $  ['A' .. 'Z']
 
-nCapsAlpha :: Parser Char
-nCapsAlpha = oneOf $  ['a' .. 'z']
-
+smallCapsAlpha :: Parser Char
+smallCapsAlpha = oneOf $  ['a' .. 'z']
 
 numeric :: Parser Char
 numeric = oneOf ['0' .. '9']

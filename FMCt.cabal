@@ -27,6 +27,7 @@ common common-specs
     base,
     containers,
     parsec,
+    lens,
                         
   default-extensions:
     LambdaCase
@@ -69,6 +70,7 @@ executable FMCt-web
                         TypeApplications 
                         TypeFamilies 
                         InstanceSigs
+
   other-modules:     FMCt.Web
                      FMCt.Web.Components.Brick
                      FMCt.Web.Components.MainPage

@@ -11,9 +11,10 @@ module FMCt.Syntax (
     Tm (..),
     Type (..),
     Vv,
+    module P,
 ) where
 
-import FMCt.Aux.Pretty
+import FMCt.Aux.Pretty as P
 
 type Vv = String  -- ^ Variable Value is represeted by a String.
 
@@ -27,7 +28,7 @@ data Tm
     | P Tm Lo Tm   -- ^ Application or Push: [M]a.N
     | B Vv T Lo Tm -- ^ Abstraction or Pop:  a\<x:t\>.N
     | St           -- ^ Star
-    deriving Eq 
+    deriving (Eq, Show)
 
 --------------------------------------------------------------------------
 -- Location Parametrised types = out(a), in(a),b,in(c), int, in(a,b,c)) --
@@ -46,17 +47,25 @@ data Type a
   | TLoc Lo (Type a)   -- ^ Location Parametrised Type.
   | Type a :=> Type a  -- ^ A Function Type.
   | TEmp               -- ^ Empty
-  deriving (Eq,Show)
+  deriving (Eq,Show,Ord)
 
-instance Semigroup T where
+instance Functor Type where
+  fmap f = \case
+    TEmp    -> TEmp
+    TCon x  -> TCon $ f x
+    TVec [] -> TEmp
+    TLoc l x -> TLoc l (f <$> x)
+    TVar x -> TVar $ f x
+    TVec (x:xs) -> (f <$> x) <> (f <$> (TVec xs))
+    x :=> y -> (f <$> x) :=> (f <$> y) 
+
+instance Semigroup (Type a) where
     TEmp <> x = x
     x <> TEmp = x
     TVec [] <> x = x
     x <> TVec [] = x
-    TCon "" <> x = x
     x <> TVec y = TVec $ x : y
     TVec x <> y = TVec $ x ++ [y]
-    x <> TCon "" = x
     xx@(TCon _) <> yy@(TCon _) = TVec [xx, yy]
     xx <> yy = TVec [xx, yy]
 
@@ -81,28 +90,39 @@ data Lo
 --------------------------------------------------------------------------------
 -- Show instances
 instance Show Lo where
-    show x = case x of
-        Out -> "out"
-        In -> "in"
-        Rnd -> "rnd"
-        Nd -> "nd"
-        Ho -> "γ"
-        La -> "λ"
-        Lo y -> y
+  show x = case x of
+    Out  -> "Out"
+    In   -> "In"
+    Rnd  -> "Rnd"
+    Nd   -> "Nd"
+    Ho   -> "Ho"
+    La   -> "La"
+    Lo y -> "Lo" ++ show y
+
+instance Pretty Lo where
+  pShow = \case
+    Out -> "out"
+    In -> "in"
+    Rnd -> "rnd"
+    Nd -> "nd"
+    Ho -> "γ"
+    La -> "λ"
+    Lo y -> y
 
 instance Pretty (Type String) where
     pShow x = case x of
         TCon "" -> " "
-        TEmp  -> " " 
+        TEmp  -> "()" 
         TCon y -> y
         TVar y -> "_" ++ y 
         TVec _x -> mconcat ["(", init $ mconcat $ (flip (++) ",") <$> pShow <$> _x, ")"]
-        TLoc l y -> show l ++ "(" ++ pShow y ++ ")"
-        t1 :=> t2 -> mconcat ["(", pShow t1, " => ", pShow t2, ")"]
+        TLoc l y -> pShow l ++ "(" ++ pShow y ++ ")"
+        t1 :=> t2 -> mconcat [pShow t1, " => ", pShow t2]
 
-instance Show Tm where
-    show x = case x of
-        B v t l t' -> show l ++ "<" ++ v ++ ":" ++ show t ++ ">" ++ "." ++ show t'
-        P t l t' -> "[" ++ show t ++ "]" ++ show l ++ "." ++ show t'
-        V v t -> v ++ "." ++ show t -- untyped version
-        St -> "*"
+instance Pretty Tm where
+  pShow = \case
+    B v t l t' -> pShow l ++ "<" ++ v ++ ":" ++ pShow t ++ ">" ++ "." ++ pShow t'
+    P t l t' -> "[" ++ pShow t ++ "]" ++ pShow l ++ "." ++ pShow t'
+    V v t -> v ++ "." ++ pShow t -- untyped version
+    St -> "*"
+
