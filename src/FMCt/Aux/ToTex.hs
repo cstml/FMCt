@@ -24,7 +24,7 @@ _term :: String -> String
 _term x = "\\term{ " ++ x ++ " } "
 
 _type :: String -> String
-_type x = " \\type{ " ++ x ++ " } "
+_type x = "{\\color{blue} " ++ x ++ " } "
 
 _math :: String -> String
 _math x = "$$ \n" ++ x ++ "\n $$ \n"
@@ -53,8 +53,14 @@ instance ToTex Tm  where
   toTex = \case
     St -> _term "*"
     V bi n ->  _term bi ++ _term " ; " ++ toTex n
-    P t l nt -> toTex l ++ _term " [ " ++ toTex t ++ _term " ] " ++  _term " ; " ++ toTex nt    
-    B bi ty lo nt -> _term " < " ++ _term bi ++ _term " : " ++ (_type . toTex) ty ++ _term ">" ++ toTex lo ++ _term " ; " ++ toTex nt
+    P t lo nt ->
+      if lo /= La
+      then _term " [ " ++ toTex t ++ _term " ] " ++ toTex lo ++  _term " ; " ++ toTex nt
+      else _term " [ " ++ toTex t ++ _term " ] " ++  _term " ; " ++ toTex nt    
+    B bi ty lo nt ->
+      if lo /= La
+      then toTex lo ++ _term " < " ++ _term bi ++ _term " : " ++ (_type . toTex) ty ++ _term ">" ++ _term " ; " ++ toTex nt
+      else _term " < " ++ _term bi ++ _term " : " ++ (_type . toTex) ty ++ _term ">" ++ _term " ; " ++ toTex nt
     
 instance ToTex T  where
   toTex = \case
@@ -62,9 +68,10 @@ instance ToTex T  where
     TCon x      -> "  " ++ x ++ " "
     TVar x      -> "  " ++ x ++ " "
     TVec []     -> "  "
+    TVec [x]    -> toTex x
     TVec (x:xs) -> " ( " ++ toTex x ++ ", " ++ toTex (TVec xs) ++ " ) "
     TLoc l t    -> toTex l ++ "( " ++ toTex t ++ " )"
-    t1 :=> t2   -> toTex t1 ++ " > " ++ toTex t2
+    t1 :=> t2   -> toTex t1 ++ " \\To " ++ toTex t2
 
 instance ToTex Context  where
   toTex _ = "\\Gamma "

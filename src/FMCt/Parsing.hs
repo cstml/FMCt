@@ -37,10 +37,10 @@ parseType x = either (E.throw . PTypeErr . show) id $ parse termType "TypeParser
 
 -- | Term Parser.
 term :: Parser Tm
-term = choice $ try <$> [variable, application, abstraction, star]
+term = choice $ try <$> [ application, abstraction, variable, star]
 
 -- | Abstraction Parser.
--- Example: <x:a>
+-- Example: lo<x:a>
 abstraction :: Parser Tm
 abstraction = do
     l <- location
