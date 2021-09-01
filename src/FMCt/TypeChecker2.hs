@@ -5,6 +5,9 @@
 
 module FMCt.TypeChecker2 
   (
+    Derivation(..),
+    Judgement,
+    Context,
     derive0,
     derive1,
     testD0,    
@@ -28,7 +31,6 @@ import Control.Monad
 import FMCt.Aux.Pretty (pShow,Pretty)
 import Data.Set
 import Control.Exception
-import Control.Lens hiding (Context)
 import Data.List (nub)
 
 type Context = [(Vv, T)]

@@ -2,6 +2,7 @@
 module FMCt (module X, module XX) where
 
 import FMCt.Aux.Pretty as X
+import FMCt.Aux.ToTex as X
 import FMCt.Evaluator as X (eval, eval1, eval1', evalToString)
 import FMCt.Examples as X (examplesList)
 import FMCt.Parsing as X (parseFMC, parseFMCtoString, parseType)
