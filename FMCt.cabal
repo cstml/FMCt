@@ -39,6 +39,7 @@ common library-specs
     FMCt.Syntax
     FMCt.TypeChecker
     FMCt.TypeChecker2
+    FMCt.TypeCheckerAlt
     FMCt.Aux.Pretty
     FMCt.Aux.ToTex
 

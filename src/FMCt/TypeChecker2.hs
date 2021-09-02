@@ -8,14 +8,18 @@ module FMCt.TypeChecker2
     Derivation(..),
     Judgement,
     Context,
+    TSubs,
     derive0,
     derive1,
     testD0,    
     testD1,
     testD2,
     derive2,
+    derive2Subs,
     getTermType,
     pShow',
+    normalForm,
+    getContext,
   ) where
 import FMCt.Syntax
 import FMCt.Parsing
@@ -38,9 +42,11 @@ type Context = [(Vv, T)]
 type Judgement = (Context, Term, T)
 
 type Term = Tm
-           
+
+-- | A type substitution is a pair of types             
 type TSubs = (T,T)
 
+-- | Standard Derivation type. Based on the FMC's BNF.
 data Derivation
     = Star        !Judgement
     | Variable    !Judgement !Derivation
@@ -48,9 +54,13 @@ data Derivation
     | Application !Judgement !Derivation !Derivation
     deriving (Show, Eq)
 
+-- | Default Empty Context
 emptyCx :: Context
 emptyCx = [("*",mempty :=> mempty)]
 
+-- | Converts a term into its normal form.
+-- Example:
+-- > a,l(al(b),a),c ~> a,c,l(a,al(b))
 normalForm :: T -> T
 normalForm = \x -> case x of 
   TEmp -> TEmp
@@ -67,7 +77,8 @@ normalForm = \x -> case x of
   TLoc l t -> TLoc l (normalForm t)
   m :=> n -> normalForm m :=> normalForm n
 
- 
+-- | Derive0 provides the structure of the derivation, without unifing the
+-- types. Useful for testing the AST of a type derivation.
 derive0 :: Term -> Derivation
 derive0 term = derive0' freshVarTypes term
   where
@@ -192,13 +203,21 @@ type Result a = Either TError a
 
 -- | Same as "derive1" but safe, and applies all substitutions at the end.
 derive2 :: Term -> Result Derivation
-derive2 term = do
+derive2 = (fmap snd) . derive2Aux
+
+-- | Get the substitutions that were needed for the unification.
+derive2Subs :: Term -> Result [TSubs]
+derive2Subs = (fmap fst) . derive2Aux
+
+-- | Same as "derive1" but safe, and applies all substitutions at the end.
+derive2Aux :: Term -> Result ([TSubs],Derivation)
+derive2Aux term = do
   let (ppTerm,lTStream) = replaceInfer freshVarTypes term
   bCx           <- pBCx ppTerm                             -- pre build context
   result        <- derive2' lTStream bCx emptySb ppTerm    -- derive
   let derivation = snd result                              -- take final derivation
   let casts      = fst result                              -- take the final casts 
-  return $ applyTSubsD casts derivation                    -- apply them to the derivation and return it 
+  return $ (casts,applyTSubsD casts derivation)            -- apply them to the derivation and return it 
   
   where
     emptySb = []

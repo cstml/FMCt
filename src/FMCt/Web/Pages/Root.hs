@@ -12,12 +12,13 @@ pRoot = sMainPage
   where
     sMainPage :: LU.Html ()
     sMainPage = do
-        regularPage "FMCt Homepage" $ do
-            brick "version" "V.0.0.1" "" "Welcome to the FMCt Web Interpreter."
-            brick "version" "V.0.0.1" "" "Links"
+        regularPage ("FMCt Homepage"::String) $ do
+            brick ("version"::String) ("V.2.0.1"::String) (""::String) ("Welcome to the FMCt Web Interpreter." :: String)
             LB.row_ $ do
                 LB.span2_ $
                     LU.div_ [LU.name_ "Links"] $ do
                         LU.h3_ "Links"
-                        LU.ul_ $ LU.a_ [LU.href_ "parse?term=*"] "Parser"
+--                        LU.ul_ $ LU.a_ [LU.href_ "parse?term=*"] "Parser" 
+--                        Evaluator has fallen a bit behind. TODO fix
                         LU.ul_ $ LU.a_ [LU.href_ "derive?term=*"] "Derivation Tester"
+                        LU.ul_ $ LU.a_ [LU.href_ "deriveAlt?term=*"] "Derivation Tester (Legacy)"

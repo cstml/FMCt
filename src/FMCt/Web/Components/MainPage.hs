@@ -18,7 +18,7 @@ mainPage = LU.renderText sMainPage
         LB.container_ $ do
             LB.row_ $ do
                 LB.span2_ $ LU.div_ [LU.name_ "Title"] $ LU.h1_ "FMCt-Web"
-                LB.span2_ $ LU.div_ [LU.name_ "SubTitle"] $ LU.h2_ "V.0.4.1.beta"
+                LB.span2_ $ LU.div_ [LU.name_ "SubTitle"] $ LU.h2_ "V.2.0.2.beta"
                 LU.hr_ []
                 LB.span2_ $ LU.h3_ "Welcome to the FMCt Web Interpreter."
 
@@ -27,5 +27,5 @@ mainPage = LU.renderText sMainPage
                 LB.span2_ $
                     LU.div_ [LU.name_ "Links"] $ do
                         LU.h3_ "Links"
-                        LU.ul_ $ LU.a_ [LU.href_ "parse?term=*"] "Parser"
+--                        LU.ul_ $ LU.a_ [LU.href_ "parse?term=*"] "Parser" -- Broken this is 
                         LU.ul_ $ LU.a_ [LU.href_ "derive?term=*"] "Derivation Tester"

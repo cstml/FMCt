@@ -20,7 +20,9 @@ module FMCt.TypeChecker (
     (<.>),
     getTermType,
     splitStream,
-    buildContext,    
+    buildContext,
+    pShow,
+    pShow',
 ) where
 
 --import Data.Set
@@ -565,3 +567,80 @@ instance Pretty Derivation where
                 (l1, m1 + r1 + 2 + l2 + m2, r2, [x ++ "  " ++ y | (x, y) <- zip d1 (extend (l2 + m2 + r2) d2)])
             | otherwise =
                 (l1, m1 + r1 + 2 + l2 + m2, r2, [x ++ " " ++ y | (x, y) <- zip (extend (l1 + m1 + r1) d1) d2])
+    pShow d = unlines (reverse strs)
+      where
+        (_, _, _, strs) = showD d
+        showT :: T -> String
+        showT = pShow
+        showC :: Context -> String
+        showC =
+            let sCtx (x, t) = show x ++ ":" ++ showT t ++ ", "
+             in \case
+                    [] -> []
+                    c -> (flip (++) " ") . mconcat $ sCtx <$> c
+        showJ :: Judgement -> String
+        showJ (cx, n, t) = mconcat $ showC cx{-"Γ "-} : "|- " : show n : " : " : showT t : []
+        showL :: Int -> Int -> Int -> String
+        showL l m r = mconcat $ replicate l ' ' : replicate m '-' : replicate r ' ' : []
+        showD :: Derivation -> (Int, Int, Int, [String])
+        showD (Star j) = (0, k, 0, [s, showL 0 k 0]) where s = showJ j; k = length s
+        showD (Variable j) = (0, k, 0, [s, showL 0 k 0]) where s = showJ j; k = length s
+        showD (Abstraction j d') = addrule (showJ j) (showD d')
+        showD (Application j d') = addrule (showJ j) (showD d')
+        showD (Fusion j d' e) = addrule (showJ j) (sidebyside (showD d') (showD e))
+        addrule :: String -> (Int, Int, Int, [String]) -> (Int, Int, Int, [String])
+        addrule x (l, m, r, xs)
+            | k <= m =
+                (ll, k, rr, (replicate ll ' ' ++ x ++ replicate rr ' ') : showL l m r : xs)
+            | k <= l + m + r =
+                (ll, k, rr, (replicate ll ' ' ++ x ++ replicate rr ' ') : showL ll k rr : xs)
+            | otherwise =
+                (0, k, 0, x : replicate k '-' : [replicate (- ll) ' ' ++ y ++ replicate (- rr) ' ' | y <- xs])
+          where
+            k = length x; i = div (m - k) 2; ll = l + i; rr = r + m - k - i
+        extend :: Int -> [String] -> [String]
+        extend i strs' = strs' ++ repeat (replicate i ' ')
+        sidebyside :: (Int, Int, Int, [String]) -> (Int, Int, Int, [String]) -> (Int, Int, Int, [String])
+        sidebyside (l1, m1, r1, d1) (l2, m2, r2, d2)
+            | length d1 > length d2 =
+                (l1, m1 + r1 + 2 + l2 + m2, r2, [x ++ "  " ++ y | (x, y) <- zip d1 (extend (l2 + m2 + r2) d2)])
+            | otherwise =
+                (l1, m1 + r1 + 2 + l2 + m2, r2, [x ++ " " ++ y | (x, y) <- zip (extend (l1 + m1 + r1) d1) d2])
+
+-- | Pretty Show of derivation hiding the context.
+pShow' :: Derivation -> String
+pShow' d = unlines (reverse strs)
+  where
+    (_, _, _, strs) = showD d
+    showT :: T -> String
+    showT = pShow
+    showC :: Context -> String
+    showC = const "Γ "
+    showJ :: Judgement -> String
+    showJ (cx, n, t) = mconcat $ showC cx : "|- " : pShow n : " : " : showT t : []
+    showL :: Int -> Int -> Int -> String
+    showL l m r = mconcat $ replicate l ' ' : replicate m '-' : replicate r ' ' : []
+    showD :: Derivation -> (Int, Int, Int, [String])
+    showD (Star j) = (0, k, 0, [s, showL 0 k 0]) where s = showJ j; k = length s
+    showD (Variable j) = (0, k, 0, [s, showL 0 k 0]) where s = showJ j; k = length s
+    showD (Abstraction j d') = addrule (showJ j) (showD d')
+    showD (Application j d') = addrule (showJ j) (showD d')
+    showD (Fusion j d' e) = addrule (showJ j) (sidebyside (showD d') (showD e))
+    addrule :: String -> (Int, Int, Int, [String]) -> (Int, Int, Int, [String])
+    addrule x (l, m, r, xs)
+        | k <= m =
+            (ll, k, rr, (replicate ll ' ' ++ x ++ replicate rr ' ') : showL l m r : xs)
+        | k <= l + m + r =
+            (ll, k, rr, (replicate ll ' ' ++ x ++ replicate rr ' ') : showL ll k rr : xs)
+        | otherwise =
+            (0, k, 0, x : replicate k '-' : [replicate (- ll) ' ' ++ y ++ replicate (- rr) ' ' | y <- xs])
+      where
+        k = length x; i = div (m - k) 2; ll = l + i; rr = r + m - k - i
+    extend :: Int -> [String] -> [String]
+    extend i strs' = strs' ++ repeat (replicate i ' ')
+    sidebyside :: (Int, Int, Int, [String]) -> (Int, Int, Int, [String]) -> (Int, Int, Int, [String])
+    sidebyside (l1, m1, r1, d1) (l2, m2, r2, d2)
+        | length d1 > length d2 =
+            (l1, m1 + r1 + 2 + l2 + m2, r2, [x ++ "  " ++ y | (x, y) <- zip d1 (extend (l2 + m2 + r2) d2)])
+        | otherwise =
+            (l1, m1 + r1 + 2 + l2 + m2, r2, [x ++ " " ++ y | (x, y) <- zip (extend (l1 + m1 + r1) d1) d2])

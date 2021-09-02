@@ -4,6 +4,7 @@ module FMCt.Web.MainWebsite (mainWebsite, mainWebsitePort) where
 
 import FMCt.Web.Helpers.Heroku (herokuGetPort)
 import FMCt.Web.Pages.Derive (pDerive)
+import qualified FMCt.Web.Pages.DeriveAlt as Da (pDerive)
 import FMCt.Web.Pages.Evaluator (pEvaluator)
 import FMCt.Web.Pages.Root (pRoot)
 import FMCt.Web.Style.MainStyle (mainStylePage)
@@ -25,6 +26,11 @@ mainWebsitePort port = do
             term' <- param "term"
             (html . LU.renderText . pDerive) term'
 
+    -- Alt Derivation Page.
+    let rDerivationPageAlt = get "/deriveAlt" $ do
+            term' <- param "term"
+            (html . LU.renderText . Da.pDerive) term'
+
     -- Styling.
     let css = S.get "/style.css" $ html mainStylePage    
 
@@ -34,6 +40,7 @@ mainWebsitePort port = do
         rParse
         css
         rDerivationPage
+        rDerivationPageAlt
 
 
 -- | Start serving the website.
