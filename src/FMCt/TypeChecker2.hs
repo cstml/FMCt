@@ -67,7 +67,7 @@ normalForm = \x -> case x of
   TLoc l t -> TLoc l (normalForm t)
   m :=> n -> normalForm m :=> normalForm n
 
-  
+ 
 derive0 :: Term -> Derivation
 derive0 term = derive0' freshVarTypes term
   where
@@ -101,7 +101,7 @@ derive0 term = derive0' freshVarTypes term
           deriv = derive0' (tail stream) ptm
           abvT = getDerivationT  deriv
           nDeriv = derive0' (tail stream) t'
-  
+
 derive1 :: Term -> Derivation
 derive1 term = snd $ derive1' freshVarTypes pBCx emptySb term
   where
@@ -331,7 +331,7 @@ merge exSubs x y =
   in
     case x' of      
       TEmp -> case y' of
-        TVar _ ->  ((y',mempty):exSubs,mempty,y')
+--        TVar _ ->  ((y',mempty):exSubs,mempty,y')
         _      ->  (exSubs,mempty,y') -- mempty doesn't change anything else        
       
       TVec [] -> merge exSubs TEmp y
