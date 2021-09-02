@@ -2,52 +2,39 @@
 
 Typed Functional Machine Calculus.
 
-The project is in active development, and there will be many breaking changes. 
-
-With that being said, I will try and correctly note the versions of each.
+The project is in active development, and there will be many breaking changes.
 
 ## Building
 
-To build there are two ways, depending on which you prefer:
+To build there are two ways, depending on which you prefer. Note that both are
+valid for UNIX systems. As it stands, there is no defined way of building on
+windows except for the normal `cabal new-build`.
 
 ### With Nix
 
 1. pull the repo,
-2. run: `nix-build release.nix && ./result/bin/FMCt`,
-3. you are in the repl,
-4. Have fun!
+2. run: `nix-build`,
+3. you now have access to bothe executables in `/result`
 
 ### With Cabal
 
 1. pull the repo,
-2. run: `cabal new-build && cabal run`,
-3. you are in the repl,
-4. have fun!
+2. run: `cabal new-run FMCt-web`,
+3. you are locally serivng the FMCt-web at port 8080 
+4. if your port is busy, set the FMCt-web to serve at a new port by setting
+`export PORT=8082` to 8082 or whichever port you want to serve from.
 
 #### With GNUMake
 
-- this will just use the NIX, but might update later.
+Have a look inside the `makefile` for useful commands. 
 
-## Examples
+## Documentation
 
-To play with examples, have a look in the source files as there are examples
-sprinkled around. Especially in `src-exe/Examples.hs`.
-
----
+To create the documentation you need to run `make documentation`.
 
 # FMCt-web
 
 The FMCt-web is a web interface for the FMCt where people can try out the
 language and its type checker without having to install anything.
 
-## TO-DO
-
-As you can probably tell the whole thing is a bit of a WIP, but nevertheless it
-is up and working. There are still many things to do, but I am mostly focusing
-on getting the Type-Checker done. I will update this as I go along - and
-hopefully it will be in a good enough state.
-
-- [ ] make it pretty 
-  - [ ] make it less ugly 
-- [ ] make it more of a REPL
-
+There's also a CI/CD which deploys the main branch to [this website](https://fmct-web.herokuapp.com/).

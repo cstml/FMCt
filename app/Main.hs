@@ -1,5 +1,5 @@
 {-
-
+Main module for derivator App.
 -}
 module Main (main) where
 

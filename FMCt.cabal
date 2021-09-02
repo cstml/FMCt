@@ -107,7 +107,7 @@ library
   import:            library-specs                        
   exposed-modules:   FMCt
                                                 
-executable FMCt         
+executable FMCt-exe         
   import:            common-specs
   hs-source-dirs:    app
   main-is:           Main.hs

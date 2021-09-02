@@ -3,20 +3,15 @@
 
 # Run the main executable
 run: build
-	nix-shell -p rlwrap --command "rlwrap ./result/bin/FMCt"
+	cabal new run FMCt-web
 
 # Build the main executable with nix
 build: 
-	nix-build 
-
-# Clean-up the folder 
-clean:
-	@rm .*/**~ 2> /dev/null #remove all the backups made by emacs
-	@rm -r ./dit-newstyle
+	cabal new-build
 
 # Starts a repl
 repl-start:
-	cabal new-repl Test
+	cabal new-repl 
 
 # Start a lint watcher 
 lint-watch:
@@ -33,9 +28,9 @@ compile-watch:
 haddock-watch:
 	ls **/* | entr cabal v2-haddock executables
 
-# Reformat all the code according to fourmolu.yaml
-reformat: 
-	~/.local/bin/fourmolu --mode inplace $$(git ls-tree -r --full-tree --name-only HEAD | grep -e ".*\.hs")
-
+# Will create the documentation and then open a browser with it 
 documentation:
-	nix-shell --command "cabal v2-haddock executables"
+	cabal v2-haddock executables\
+  && open ./dist-newstyle/build/x86_64-linux/ghc-8.6.5/FMCt-0.5.0.0/x/FMCt-web/doc/html/FMCt/FMCt-web/index.html \
+	|| firefox ./dist-newstyle/build/x86_64-linux/ghc-8.6.5/FMCt-0.5.0.0/x/FMCt-web/doc/html/FMCt/FMCt-web/index.html \
+  || echo "it seems like I cannot find the index. Look at the last line as it should indicate where the index.html is saved. Open it in a browser."
