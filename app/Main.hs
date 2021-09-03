@@ -1,43 +1,29 @@
 {-
-Main module for derivator App.
+Main derivator App.
 -}
 module Main (main) where
 
-import Control.Monad (forM_, void)
-import Data.String (IsString (..))
-import FMCt (eval1, parseFMC, printOutput, printStack)
+import FMCt (testD2, testAlt)
 
 main :: IO ()
-main =
-    let break = replicate 80 '='
-     in do
-            putStrLn $
-                break ++ "\n"
-                    ++ "Hello, and welcome to the FMCt REPL \n"
-                    ++ "May the λ be with you!\n"
-                    ++ break
-
-            do
-                forM_ (repeat 3) $
-                    \_ ->
-                        putStr "γ> "
-                            >> readLn >>= \unPterm ->
-                                (return . parseFMC) unPterm >>= \pTerm ->
-                                    (putStrLn . ("Term: " ++) . show) pTerm
-                                        >> (return . eval1) pTerm >>= \state ->
-                                            (print . ("State: " ++) . show) state
-                                                >> (putStrLn . printStack) state
-                                                >> putStrLn break
-                                                >> (putStrLn . printOutput) state
-                                                >> putStrLn break
-
-shortcut :: String -> IO ()
-shortcut unPterm =
-    (return . parseFMC) unPterm
-        >>= \pTerm ->
-            (putStrLn . ("Term: " ++) . show) pTerm
-                >> (return . eval1) pTerm
-                >>= \state ->
-                    (print . ("State: " ++) . show) state
-                        >> (putStrLn . printStack) state
-                        >> (putStrLn . printOutput) state
+main = 
+  let
+    inp :: IO (String -> IO ())
+    inp = do 
+      putStrLn "\nEnter: \n1 - for type derivator, \n2 - for legacy type derivator"  
+      key <- getLine
+      case key of 
+        "1" -> return $ testD2
+        "2" -> return $ testAlt
+        _   -> do putStrLn $ "Sorry, didn't quite catch that.\nLet's try again.\n" 
+                  inp
+    loop :: (String -> IO ()) -> IO ()
+    loop fn = putStr "γ> " >> getLine >>= fn >> loop fn
+  in 
+    do
+      let bLn = replicate 80 '='
+      putStrLn $ mconcat [ bLn, "\n", "Hello, and welcome to the FMCt REPL \n"
+                         , "May the λ be with you!\n"
+                         , bLn ]
+      inp >>= loop 
+      

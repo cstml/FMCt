@@ -9,7 +9,7 @@
 --
 --Alternative type-checker (legacy).
 
-module FMCt.TypeCheckerAlt ( derive1, testD1, getContext, Derivation(..), pShow')
+module FMCt.TypeCheckerAlt ( derive1, testAlt, getContext, Derivation(..), pShow')
 where 
 
 import FMCt.Syntax
@@ -107,8 +107,8 @@ derive1 term = do
         let (tCasts,ty) = fuse tL tR
         return . applyTSubsD tCasts $ Fusion (mCx, xx, ty) derivL derivR
 
-testD1 :: String -> IO ()
-testD1 = either (putStrLn.show) putStrLn . fmap pShow . derive1 . parseFMC
+testAlt :: String -> IO ()
+testAlt = either (putStrLn.show) putStrLn . fmap pShow . derive1 . parseFMC
 
 type TSubs = (T,T)
 

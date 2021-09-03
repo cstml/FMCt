@@ -471,21 +471,30 @@ normaliseT t
 data Operations
     = Add
     | Subtract
+    | Multiply
+    | Divide
+    | Modulus
     | If
     deriving (Eq, Ord)
 
 instance Read Operations where
     readsPrec _ = \case
-        "+" -> return (Add, mempty)
-        "-" -> return (Subtract, mempty)
+        "+"  -> return (Add, mempty)
+        "-"  -> return (Subtract, mempty)
         "if" -> return (If, mempty)
-        i -> return (error "", i)
+        "^" -> return (Multiply, mempty)
+        "%"  -> return (Modulus, mempty)
+        "/"  -> return (Divide, mempty)
+        i    -> return (error "", i)
 
 instance Show Operations where
     show = \case
-        Add -> "+"
+        Add      -> "+"
         Subtract -> "-"
-        If -> "if"
+        If       -> "if"
+        Multiply -> "^"
+        Modulus  -> "%" 
+        Divide   -> "/" 
 
 -- | Pre parses the Term for primitives and adds their type to the context.
 buildContext :: Context -> Term -> Either TError Context
@@ -497,8 +506,11 @@ buildContext eCtx =
 
         opType :: Operations -> T
         opType = \case
-            Add -> TVec [i, i] :=> i
-            Subtract -> TVec [i, i] :=> i
+            Add -> TVec [i, i] :=> TLoc La i
+            Subtract -> TVec [i, i] :=> TLoc La i
+            Multiply -> TVec [i, i] :=> TLoc La i
+            Divide -> TVec [i, i] :=> TLoc La i
+            Modulus -> TVec [i, i] :=> TLoc La i
             If -> TVec[ b
                       , TLoc (Lo "if") $ TVar "ifVar1"
                       , TLoc (Lo "if") $ TVar "ifVar1"
