@@ -33,6 +33,8 @@ type Term = Tm
 emptyCx :: Context
 emptyCx = [("*",mempty :=> mempty)]
 
+-- | Legacy derivation creator that uses the Alternative Typing Laws. Although
+-- it arrives at similar results, it is less developed. 
 derive1 :: Term -> Either TError Derivation
 derive1 term = do
   preBuildCtx <- buildContext emptyCx term
@@ -107,6 +109,8 @@ derive1 term = do
         let (tCasts,ty) = fuse tL tR
         return . applyTSubsD tCasts $ Fusion (mCx, xx, ty) derivL derivR
 
+-- | Utility derivation testing function. Similar to 'testD2' but uses the
+-- legacy derivation algorithm and structure.
 testAlt :: String -> IO ()
 testAlt = either (putStrLn.show) putStrLn . fmap pShow . derive1 . parseFMC
 

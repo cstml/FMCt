@@ -1,13 +1,18 @@
 {-#LANGUAGE TypeSynonymInstances#-}
 {-#LANGUAGE FlexibleInstances#-}
 
-module FMCt.Aux.ToTex where
+module FMCt.Aux.ToTex
+  ( saveDiagram
+  )
+where
 
 import System.IO (writeFile)
 import FMCt.TypeChecker2
 import FMCt.Parsing (parseFMC)
 import FMCt.Syntax
 
+-- | Saves diagram to a predefined location - for my disertation. Not useful for
+-- you.
 writeLocally :: String -> String -> IO ()
 writeLocally title str =
   writeFile ("../../deliverables/02-dissertation/tex/files/diagrams/"

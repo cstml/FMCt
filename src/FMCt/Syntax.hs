@@ -18,10 +18,6 @@ import FMCt.Aux.Pretty as P
 
 type Vv = String  -- ^ Variable Value is represeted by a String.
 
--------------------------------------------
--- M,N  = * | x.N | [M]a.N | a<x : t>. N --
--------------------------------------------
-
 -- | FMC Terms Type
 data Tm
     = V Vv Tm      -- ^ Variable
@@ -30,51 +26,43 @@ data Tm
     | St           -- ^ Star
     deriving (Eq, Show)
 
---------------------------------------------------------------------------
--- Location Parametrised types = out(a), in(a),b,in(c), int, in(a,b,c)) --
---------------------------------------------------------------------------
-
 infixr 9 :=>
 
--- | Term Types
+-- | FMCt Term Types
 type T = Type String
 
 -- | Type data structure
 data Type a
   = TCon a             -- ^ Type Constant.
-  | TVar a             -- ^ Type Variable - (like haskell forall - WIP)
-  | TVec [Type a]      -- ^ Type Vector
+  | TVar a             -- ^ Type Variable.
+  | TVec [Type a]      -- ^ Type Vector.
   | TLoc Lo (Type a)   -- ^ Location Parametrised Type.
   | Type a :=> Type a  -- ^ A Function Type.
-  | TEmp               -- ^ Empty
+  | TEmp               -- ^ Empty Type.
   deriving (Eq,Show,Ord)
 
 instance Functor Type where
   fmap f = \case
-    TEmp    -> TEmp
-    TCon x  -> TCon $ f x
-    TVec [] -> TEmp
-    TLoc l x -> TLoc l (f <$> x)
-    TVar x -> TVar $ f x
+    TEmp        -> TEmp
+    TCon x      -> TCon $ f x
+    TVec []     -> TEmp
+    TLoc l x    -> TLoc l (f <$> x)
+    TVar x      -> TVar $ f x
     TVec (x:xs) -> (f <$> x) <> (f <$> (TVec xs))
-    x :=> y -> (f <$> x) :=> (f <$> y) 
+    x :=> y     -> (f <$> x) :=> (f <$> y) 
 
 instance Semigroup (Type a) where
-    TEmp <> x = x
-    x <> TEmp = x
-    TVec [] <> x = x
-    x <> TVec [] = x
-    x <> TVec y = TVec $ x : y
-    TVec x <> y = TVec $ x ++ [y]
+    TEmp <> x                  = x
+    x <> TEmp                  = x
+    TVec [] <> x               = x
+    x <> TVec []               = x
+    x <> TVec y                = TVec $ x : y
+    TVec x <> y                = TVec $ x ++ [y]
     xx@(TCon _) <> yy@(TCon _) = TVec [xx, yy]
-    xx <> yy = TVec [xx, yy]
+    xx <> yy                   = TVec [xx, yy]
 
 instance Monoid T where
     mempty = TEmp 
-
---------------------------------------------
--- Location = {out, in, rnd, nd, x, γ, λ} --
---------------------------------------------
 
 -- | Predefined Locations of the FMC together with general locations.
 data Lo 
@@ -110,19 +98,19 @@ instance Pretty Lo where
     Lo y -> y
 
 instance Pretty (Type String) where
-    pShow x = case x of
-        TCon "" -> " "
-        TEmp  -> "()" 
-        TCon y -> y
-        TVar y -> y 
-        TVec _x -> mconcat ["(", init $ mconcat $ (flip (++) ",") <$> pShow <$> _x, ")"]
-        TLoc l y -> pShow l ++ "(" ++ pShow y ++ ")"
-        t1 :=> t2 -> mconcat [pShow t1, " => ", pShow t2]
+  pShow x = case x of
+    TCon "" -> " "
+    TEmp  -> "()" 
+    TCon y -> y
+    TVar y -> y 
+    TVec _x -> mconcat ["(", init $ mconcat $ (flip (++) ",") <$> pShow <$> _x, ")"]
+    TLoc l y -> pShow l ++ "(" ++ pShow y ++ ")"
+    t1 :=> t2 -> mconcat [pShow t1, " => ", pShow t2]
 
 instance Pretty Tm where
   pShow = \case
     B v t l t' -> pShow l ++ "<" ++ v ++ ":" ++ pShow t ++ ">" ++ "." ++ pShow t'
     P t l t' -> "[" ++ pShow t ++ "]" ++ pShow l ++ "." ++ pShow t'
-    V v t -> v ++ "." ++ pShow t -- untyped version
+    V v t -> v ++ "." ++ pShow t 
     St -> "*"
 

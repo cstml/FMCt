@@ -10,6 +10,7 @@ module FMCt.TypeChecker2
     Context,
     TSubs,
     derive0,
+    merge,
     derive1,
     testD0,    
     testD1,
@@ -20,6 +21,8 @@ module FMCt.TypeChecker2
     pShow',
     normalForm,
     getContext,
+    loc,
+    diffLoc
   ) where
 import FMCt.Syntax
 import FMCt.Parsing
@@ -201,7 +204,8 @@ derive1 term = snd $ derive1' freshVarTypes pBCx emptySb term
 
 type Result a = Either TError a
 
--- | Same as "derive1" but safe, and applies all substitutions at the end.
+-- | Same as "derive1" but safe, and applies all substitutions at the end. The
+-- main deliverable of the disertation.
 derive2 :: Term -> Result Derivation
 derive2 = (fmap snd) . derive2Aux
 
@@ -328,6 +332,8 @@ derive2Aux term = do
 testD1 :: String -> IO ()
 testD1 = putStrLn . pShow . derive1 . parseFMC
 
+-- | Utility function that takes a string, parses it, and gets the derivation
+-- and prints it. The easies way to try and see the result of the derivation
 testD2 :: String -> IO ()
 testD2 str = do
   term       <- return $ parseFMC str
@@ -337,6 +343,7 @@ testD2 str = do
 testD0 :: String -> IO ()
 testD0 = putStrLn . pShow . derive0 . parseFMC
 
+-- | The merging algorithm as described by the disertation. 
 merge :: [TSubs]         -- ^ Substitutions to be made in both types.
         -> T             -- ^ The consuming Type.
         -> T             -- ^ The merged Type.
@@ -426,7 +433,8 @@ diffLoc :: T -> T -> Bool
 diffLoc x y = (loc' x `intersection` loc' y) == empty
   where
     loc' = loc . normaliseT . normalForm
-  
+
+-- | Retrieves the set of unsaturated locations from a term  
 loc :: T -> Set Lo
 loc = \case
   TEmp -> empty
@@ -526,8 +534,9 @@ applyTSubsD subs = subCx subs . subTy subs
       Star _                  -> d
       Variable    (a,b,t) n   -> Variable    (a,b, applyTSub s t) (subTy s n)
       Abstraction (a,b,t) n   -> Abstraction (a,b, applyTSub s t) (subTy s n)
-      Application (a,b,t) p n -> Application (a,b, applyTSub s t) (subTy s p) (subTy s n)                                 
+      Application (a,b,t) p n -> Application (a,b, applyTSub s t) (subTy s p) (subTy s n)
 
+-- | Utility getter function.      
 getTermType :: Term -> Result T
 getTermType t = do
   deriv <- derive2 t
@@ -613,6 +622,7 @@ instance Pretty Derivation where
                 (l1, m1 + r1 + 2 + l2 + m2, r2, [x ++ " " ++ y | (x, y) <- zip (extend (l1 + m1 + r1) d1) d2])
 
 
+-- | Pretty Show instance that replaces the context with gamma.
 pShow' :: Derivation -> String
 pShow' d = unlines (reverse strs)
   where
