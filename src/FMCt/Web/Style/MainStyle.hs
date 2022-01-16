@@ -1,16 +1,17 @@
-module FMCt.Web.Style.MainStyle (
-    mainStylePage,
-) where
+module FMCt.Web.Style.MainStyle
+    ( mainStylePage,
+    )
+where
 
-import Clay (
-    Css,
-    background,
-    black,
-    element,
-    grey,
-    render,
-    (?),
- )
+import Clay
+    ( (?),
+      Css,
+      background,
+      black,
+      element,
+      grey,
+      render,
+    )
 import Data.Text.Lazy as L
 
 cMyStyle :: Css

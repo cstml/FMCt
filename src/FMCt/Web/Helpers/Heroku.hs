@@ -15,6 +15,6 @@ herokuGetPort = do
     port <- return $ either (const defaultPort) ((maybe defaultPort id) . readMaybe) args
     print $ "Serving to PORT: " ++ show port
     return port
-  where
-    defaultPort = 8080 :: Int
-    defaultArg = "PORT"
+    where
+        defaultPort = 8080 :: Int
+        defaultArg = "PORT"

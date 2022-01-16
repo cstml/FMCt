@@ -1,45 +1,31 @@
-module FMCt.Pretty (
-    printStack,
-    printOutput,
-    printBindings2,
-    printBindingsA,
-    printSubs,
-) where
+module FMCt.Pretty
+    ( printStack,
+      printSubs,
+    )
+where
 
+import Control.Lens
 import Data.Map as M
 import FMCt.Evaluator
 import FMCt.Syntax
-import qualified FMCt.TypeChecker2 as T2
-import qualified FMCt.TypeCheckerAlt as TA
+import FMCt.TypeChecker
 
-printStack :: State -> String
-printStack (m, b) = "Memory: \n" ++ printer mem ++ "Bindings: \n" ++ printer bin
-  where
-    mem = M.toList m
-    bin = M.toList b
-    printer [] = ""
-    printer ((l, ts) : xs) = show l ++ "[" ++ show ts ++ "]" ++ "\n" ++ printer xs
-
-printOutput :: State -> String
-printOutput (m, _) = "Output: \n" ++ printer out
-  where
-    out = maybe [] reverse (m M.!? Out)
-    printer = \case
-        [] -> ""
-        (x : xs) -> show x ++ "\n" ++ printer xs
+printStack :: EvalState -> String
+printStack s = mconcat ["Memory: \n", printer m, "Bindings: \n", printer b]
+    where
+        m = M.toList $ s ^. memory
+        b = M.toList $ s ^. binds
+        printer [] = ""
+        printer ((l, ts) : xs) = show l ++ "[" ++ show ts ++ "]" ++ "\n" ++ printer xs
 
 -- | Pretty Prints all the bindings in a context for derivation from TypeChecker 2.
-printBindings2 :: T2.Derivation -> String
-printBindings2 = auxCtxPP . T2.getContext
-
--- | Pretty Prints all the bindings in a context for derivation from TypeChecker Alt.
-printBindingsA :: TA.Derivation -> String 
-printBindingsA = auxCtxPP . TA.getContext
+printBindings2 :: Derivation -> String
+printBindings2 = auxCtxPP . getContext
 
 -- | Shared Pretty Printer.
-auxCtxPP :: [(String, T)] -> [Char]
-auxCtxPP = mconcat . fmap (\(b,t) -> mconcat [ " ", b, " : ", pShow t, "\n"])
+auxCtxPP :: [(String, T)] -> String
+auxCtxPP = mconcat . fmap (\(b, t) -> mconcat [" ", b, " : ", pShow t, "\n"])
 
 -- | Pretty Prints substitutions
-printSubs :: [T2.TSubs] -> String
-printSubs = mconcat . fmap (\(x,y) -> mconcat [" ", pShow x, " ~> ", pShow y, "\n"])
+printSubs :: [TSubs] -> String
+printSubs = mconcat . fmap (\(x, y) -> mconcat [" ", pShow x, " ~> ", pShow y, "\n"])

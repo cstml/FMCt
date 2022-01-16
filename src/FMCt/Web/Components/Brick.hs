@@ -8,18 +8,18 @@ import qualified Lucid.Bootstrap as LB
 
 -- | The main component used for the website.
 brick ::
-    ( IsString a
-    , Show a
-    , LU.ToHtml a
-    , IsString b
-    , Show b
-    , LU.ToHtml b
-    , IsString c
-    , Show c
-    , LU.ToHtml c
-    , IsString d
-    , Show d
-    , LU.ToHtml d
+    ( IsString a,
+      Show a,
+      LU.ToHtml a,
+      IsString b,
+      Show b,
+      LU.ToHtml b,
+      IsString c,
+      Show c,
+      LU.ToHtml c,
+      IsString d,
+      Show d,
+      LU.ToHtml d
     ) =>
     -- | Component Name
     a ->
@@ -32,8 +32,9 @@ brick ::
     -- | Brick Component
     LU.Html ()
 brick cn ti st co = do
-    LU.div_ [(LU.name_ . fromString . show) cn] $
-        LB.row_ $ do
+    LU.div_ [(LU.name_ . fromString . show) cn]
+        $ LB.row_
+        $ do
             LB.span2_ $ LU.div_ [LU.name_ "Title"] $ (LU.h1_ . LU.toHtml) ti
             LB.span2_ $ LU.div_ [LU.name_ "SubTitle"] $ (LU.h2_ . LU.toHtml) st
             LU.hr_ []

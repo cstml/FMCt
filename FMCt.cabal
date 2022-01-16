@@ -1,152 +1,126 @@
-cabal-version:          2.4                      
-name:                   FMCt                      
-version:                0.5.0.0                     
-license:                BSD-3-Clause                      
-license-file:           LICENSE                      
-author:                 Vlad Posmangiu Luchian                     
+cabal-version:          2.4
+name:                   FMCt
+version:                0.6.0.0
+license:                BSD-3-Clause
+license-file:           LICENSE
+author:                 Vlad Posmangiu Luchian
 maintainer:             cstmlcodes@gmail.com
 copyright:              "Copyright belongs to Vlad Posmangiu Luchian, 2021."
 category:               Language
 build-type:             Simple
-extra-source-files:     CHANGELOG.md,
-                        README.md
-                        
-common library-specs     
+extra-source-files:     CHANGELOG.md,README.md
+
+common GHC-flags
   Ghc-Options:
-    -Wno-name-shadowing
     -Wall
+    -Wno-name-shadowing
     -Wno-unuused-top-binds
-                        
-  build-depends:
-    base,
-    containers,
-    parsec,
-                        
-  default-extensions:
-    LambdaCase
-                        
+
   default-language:
     Haskell2010
-                        
-  hs-source-dirs:
-    src
 
+common common-extensions
+  default-extensions:
+    OverloadedStrings, LambdaCase, FlexibleInstances, FlexibleContexts,
+    RankNTypes, ScopedTypeVariables, TypeApplications, TypeFamilies,
+    InstanceSigs
+
+common modules
   other-modules:
+    FMCt.Aux.Pretty
+    FMCt.Aux.ToTex
     FMCt.Evaluator
     FMCt.Examples
     FMCt.Parsing
     FMCt.Pretty
     FMCt.Syntax
     FMCt.TypeChecker
-    FMCt.TypeChecker2
-    FMCt.TypeCheckerAlt
-    FMCt.Aux.Pretty
-    FMCt.Aux.ToTex
+    FMCt.Parsing.Types
+    FMCt.Parsing.Terms
+    FMCt.Parsing.Types
 
-common common-specs     
-  Ghc-Options:
-    -Wno-name-shadowing
-    -Wall
-    -Wno-unuused-top-binds
-                        -- -Wcompat
-                        -- -Wincomplete-uni-patterns
-                        -- -Wredundant-constraints
-                        -- -Werror
-                        -- -Wincomplete-record-updates
-                        -- -Wredundant-constraints
-                        
+common library-specs
+  import: GHC-flags
+  import: common-extensions
+  import: modules
   build-depends:
     base,
     containers,
-    parsec,
+    data-default,
     lens,
-    
--- From the Scotty 
-  build-depends:       
+    parsec,
+    transformers,
+
+  hs-source-dirs:
+    src
+
+common common-specs
+  import: GHC-flags
+  import: common-extensions
+  import: modules
+
+  build-depends:
     base,
+    containers,
+    data-default,
+    lens,
+    mtl,
+    parsec,
+    transformers,
+
+  build-depends:
+    aeson,
+    base,
+    clay,
+    http-types,
+    lucid,
     scotty,
     text,
-    clay,
-    lucid,
-    aeson,
     wai-extra,
-    http-types,  
-                        
-  default-extensions:
-    LambdaCase
 
--- from the Scotty      
-  default-extensions:   OverloadedStrings,
-                        LambdaCase
-                        FlexibleInstances 
-                        FlexibleContexts 
-                        RankNTypes 
-                        ScopedTypeVariables 
-                        TypeApplications 
-                        TypeFamilies 
-                        InstanceSigs
-                        
-  default-language:
-    Haskell2010
-                        
   hs-source-dirs:
     src
 
-  other-modules:
-    FMCt.Evaluator
-    FMCt.Examples
-    FMCt.Parsing
-    FMCt.Pretty
-    FMCt.Syntax
-    FMCt.TypeChecker
-    FMCt.TypeChecker2
-    FMCt.Aux.Pretty
-    FMCt.Aux.ToTex
-        
 library
-  import:            library-specs                        
+  import:            library-specs
   exposed-modules:   FMCt
-                                                
-executable FMCt-exe         
+
+executable FMCt-exe
   import:            common-specs
   hs-source-dirs:    app
   main-is:           Main.hs
-                                                
+
 executable FMCt-web
-  import:            common-specs  
+  import:            common-specs
   main-is:           Main.hs
   hs-source-dirs:    webApp
-  default-extensions:   OverloadedStrings,
-                        LambdaCase
-                        FlexibleInstances 
-                        FlexibleContexts 
-                        RankNTypes 
-                        ScopedTypeVariables 
-                        TypeApplications 
-                        TypeFamilies 
-                        InstanceSigs
-
-  other-modules:     FMCt.Web
-                     FMCt.Web.Components.Brick
-                     FMCt.Web.Components.MainPage
-                     FMCt.Web.Components.RegularPage
-                     FMCt.Web.Helpers.Heroku
-                     FMCt.Web.MainWebsite
-                     FMCt.Web.Pages.Derive
-                     FMCt.Web.Pages.Evaluator
-                     FMCt.Web.Pages.Root
-                     FMCt.Web.Style.BootStrap
-                     FMCt.Web.Style.MainStyle
-                     FMCt.Web.Style.StdStylingHeader                      
-  build-depends:     base,
-                     scotty,
-                     text,
-                     clay,
-                     lucid,
-                     aeson,
-                     FMCt,
-                     wai-extra,
-                     http-types,
-  
 
 
+  other-modules:
+    FMCt.Web
+    FMCt.Web.Components.Brick
+    FMCt.Web.Components.MainPage
+    FMCt.Web.Components.RegularPage
+    FMCt.Web.Helpers.Heroku
+    FMCt.Web.MainWebsite
+    FMCt.Web.Pages.Derive
+    FMCt.Web.Pages.Evaluator
+    FMCt.Web.Pages.Root
+    FMCt.Web.Style.BootStrap
+    FMCt.Web.Style.MainStyle
+    FMCt.Web.Style.StdStylingHeader
+
+  build-depends:
+    base,scotty,text,clay,lucid,aeson,FMCt,wai-extra,
+    http-types,
+
+test-suite fmct-test
+  import:         library-specs
+  import:         common-specs
+  type:           exitcode-stdio-1.0
+  main-is:        Main.hs
+  hs-source-dirs: test
+  other-modules:  TestGenerators
+  build-depends:
+    tasty-expected-failure,tasty-hedgehog,tasty-hunit,
+    tasty-quickcheck,tasty,QuickCheck,hedgehog,

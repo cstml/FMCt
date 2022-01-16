@@ -17,8 +17,9 @@ regularPage st rest =
     let pTitle = LU.h1_ $ LU.a_ [LU.href_ "/"] "FMCt-Web"
         pSubTitle = LU.h2_ . LU.toHtml
         pStyling = stdStylingHeader . (fromString . show)
-     in LB.containerFluid_ $
-            LU.div_ [LU.name_ "Page Components"] $ do
+     in LB.containerFluid_
+            $ LU.div_ [LU.name_ "Page Components"]
+            $ do
                 pStyling st -- add the header to the file containing it's title and css
                 LB.span1_ pTitle -- a page title
                 LB.span1_ $ pSubTitle st -- a page subtitle

@@ -5,7 +5,7 @@ import Test.Tasty.HUnit (assertEqual, testCase)
 
 double x = x * 2
 
-half x = x / 2
+half x = x `div` 2
 
 main = defaultMain unitTests
 

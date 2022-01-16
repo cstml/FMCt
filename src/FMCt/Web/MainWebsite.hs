@@ -9,7 +9,7 @@ import FMCt.Web.Pages.Evaluator (pEvaluator)
 import FMCt.Web.Pages.Root (pRoot)
 import FMCt.Web.Style.MainStyle (mainStylePage)
 import Lucid as LU
-import qualified Web.Scotty as S 
+import qualified Web.Scotty as S
 import Web.Scotty.Trans
 
 mainWebsitePort :: Int -> IO ()
@@ -32,7 +32,7 @@ mainWebsitePort port = do
             (html . LU.renderText . Da.pDerive) term'
 
     -- Styling.
-    let css = S.get "/style.css" $ html mainStylePage    
+    let css = S.get "/style.css" $ html mainStylePage
 
     -- Routes that will be served:
     scottyT port id $ do
@@ -42,10 +42,8 @@ mainWebsitePort port = do
         rDerivationPage
         rDerivationPageAlt
 
-
 -- | Start serving the website.
 mainWebsite :: IO ()
 mainWebsite = do
     port <- herokuGetPort
     mainWebsitePort port
-   

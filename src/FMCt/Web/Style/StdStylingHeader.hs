@@ -1,6 +1,7 @@
-module FMCt.Web.Style.StdStylingHeader (
-    stdStylingHeader,
-) where
+module FMCt.Web.Style.StdStylingHeader
+    ( stdStylingHeader,
+    )
+where
 
 import qualified Data.Text.Lazy as L
 import FMCt.Web.Style.BootStrap (bootStrapStyling)
