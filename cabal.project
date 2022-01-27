@@ -1,7 +1,5 @@
 packages: ./.
   
-documentation:        True                    
-  
 haddock-html:         True
                      
 haddock-executables:  True

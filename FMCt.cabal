@@ -60,6 +60,8 @@ common common-specs
     containers,
     parsec,
     lens,
+    mtl,
+    transformers,
     
 -- From the Scotty 
   build-depends:       

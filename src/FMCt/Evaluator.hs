@@ -1,6 +1,11 @@
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FunctionalDependencies #-}
 
-module FMCt.Evaluator (
+module FMCt.Evaluator {-(
     Binds,
     Memory,
     State,
@@ -10,7 +15,7 @@ module FMCt.Evaluator (
     eval1',
     evalToString,
     tryEval1,
-) where
+)-} where
 
 import Control.Exception (IOException, try)
 import qualified Control.Exception as E
@@ -19,23 +24,55 @@ import qualified Data.Map as M
 import FMCt.Syntax (Lo (..), Tm (..), Vv)
 import FMCt.TypeChecker (typeCheck)
 import Text.Read (readMaybe)
-
--- | Memory is a Map between a location and a list of Terms.
-type Memory = Map Lo [Tm]
-
--- | Binds are a Map of Tms refering to a list of Terms.
-type Binds = Map Vv [Tm]
+import Control.Monad.Trans.State
+import Control.Monad.Trans.Class
+import Control.Monad.Trans.Except
+import Data.Functor.Identity
+import Control.Lens
 
 -- | FMCt State is formed from a tuple of Memory and Binds
-type State = (Memory, Binds)
+data MState = MState
+  { -- | Memory is a Map between a location and a list of Terms.
+    _memory :: Map Lo [Tm]
+  , -- | Binds are a Map of Tms refering to a list of Terms.
+    _binds :: Map Vv [Tm]
+  }
+
+makeLenses ''MState
+
+-- | Error Type 
+newtype Err = Err String
+
+-- | FMCt Evaluator
+newtype Evaluator a = Evaluator
+  { getEval :: ExceptT Err (StateT MState Identity) a }
+
+class FMCtMachine (a :: * -> *) where
+  err :: String -> a ()
+  getSt :: forall b . a b
+  putSt :: forall b . b -> a ()
+
+instance FMCtMachine Evaluator where
+  err = Evaluator . throwE . Err
+  getSt a = do
+    Evaluator . (lift get) . getEval
+runEvaluator :: Evaluator a -> Either Err a 
+runEvaluator a =
+  runIdentity (evalStateT (runExceptT . getEval $ a) eState)
+  where
+    eState = MState (M.fromList []) (M.fromList [])
 
 -- | Pushes a term to a location the memory
-push :: Tm -> Lo -> State -> State
-push t In _ = error $ "Cannot push term: " ++ show t ++ " to in" -- not allowed
-push t Rnd _ = error $ "Cannot push term: " ++ show t ++ " to rnd" -- not allowed
-push t Nd _ = error $ "Cannot push term: " ++ show t ++ " to nd" -- not allowed
-push t l (m, b) = maybe (M.insert l [t] m, b) (\x -> (M.insert l (t : x) m, b)) $ m !? l 
-
+push :: Tm -> Lo -> Evaluator ()
+push t = \case
+  In -> Evaluator . throwE . Err $ "Cannot push term: " ++ show t ++ " to in" -- not allowed
+  Rnd -> Evaluator . throwE . Err $ "Cannot push term: " ++ show t ++ " to rnd" -- not allowed
+  Nd ->  Evaluator . throwE . Err $ "Cannot push term: " ++ show t ++ " to nd" -- not allowed
+  l  -> Evaluator $ do
+--    st <- lift $ get
+    pure ()
+    
+{-
 -- | Binds a term to a value and puts in the memory
 bind :: Vv -> Lo -> State -> State
 bind vv l (m, b) = case m !? l of 
@@ -126,3 +163,4 @@ tryEval1 :: Tm -> IO (Either IOException State)
 tryEval1 term = do
     x :: Either IOException State <- try $ E.evaluate $ eval1 term
     return x
+-}
