@@ -31,3 +31,12 @@ alphaNumeric = alpha <|> numeric
 
 operators :: Parser Char
 operators = oneOf "+-/%=!?"
+
+lAbsBrck :: Parser Char
+lAbsBrck = char '<'
+
+rAbsBrck :: Parser Char
+rAbsBrck = char '>'
+
+typeSep :: Parser Char
+typeSep = char ':'

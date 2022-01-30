@@ -10,19 +10,34 @@ import Text.ParserCombinators.Parsec
 
 -- | Term Parser.
 term :: Parser Tm
-term = choice $ try <$> [application, abstraction, variable, star]
+term = choice . fmap try $ [application, abstraction, inferredTypeAbstraction, variable, star] 
 
 -- | Abstraction Parser.
 -- Example: lo<x:a>
 abstraction :: Parser Tm
-abstraction = do
-    l <- location
-    v <- char '<' >> spaces >> many1 alpha <> many alphaNumeric
-    t <- spaces >> char ':' >> spaces >> absTy <* spaces <* char '>'
-    t2 <- (spaces >> separator >> spaces >> term) <|> omittedStar
-    return $ B v t l t2
-  where
+abstraction =
+  let
     absTy = try higherType <|> try uniqueType
+  in  do
+    l <- location
+    lAbsBrck >> spaces
+    v <- binder
+    between spaces spaces typeSep
+    ty <- absTy <* spaces <* rAbsBrck
+    t2 <- (spaces >> separator >> spaces >> term) <|> omittedStar
+    return $ B v ty l t2
+
+-- | Abstraction Parser.
+-- Example: lo<x:a>
+inferredTypeAbstraction :: Parser Tm
+inferredTypeAbstraction = do
+    l <- location
+    lAbsBrck >> spaces
+    v <- binder
+    let ty = TVar "_"
+    t2 <- (spaces >> separator >> spaces >> term) <|> omittedStar
+    return $ B v ty l t2
+  
 
 application :: Parser Tm
 application = do
@@ -44,3 +59,6 @@ star =
 
 omittedStar :: Parser Tm
 omittedStar = (string "") >> return St
+
+binder :: Parser String
+binder =  many1 alpha <> many alphaNumeric
