@@ -138,7 +138,7 @@ instance Pretty (Type String) where
 
 instance Pretty Tm where
     pShow = \case
-        B v t l t' -> pShow l ++ "<" ++ v ++ ":" ++ pShow t ++ ">" ++ "." ++ pShow t'
+        B v t l t' -> mconcat [pShow l, "<", v,":", pShow t,">",";",pShow t']
         P t l t' -> "[" ++ pShow t ++ "]" ++ pShow l ++ "." ++ pShow t'
         V v t -> v ++ "." ++ pShow t
         St -> "*"

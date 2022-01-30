@@ -3,34 +3,31 @@ Main derivator App.
 -}
 module Main (main) where
 
+import Control.Monad
 import FMCt
 
 main :: IO ()
-main = pure ()
+main =
+  let
+    welcomeMsg = "Welcome to the FMCt interpreter."
+  in
+    forever $ do
+      putStrLn welcomeMsg
+      sequence $ fmap putStrLn 
+        [ "Enter:"
+        , "1 - for parser,"
+        , "2 - for legacy type derivator"
+        ]
+      key <- getLine
+      case key of
+        "1" -> parser
+        _ -> print "Sorry, didn't quite catch that.\nLet's try again.\n"        
 
--- FIXME
-{-
-    let inp :: IO (String -> IO ())
-        inp = do
-            putStrLn "\nEnter: \n1 - for type derivator, \n2 - for legacy type derivator"
-            key <- getLine
-            case key of
-                "1" -> return  print
-                "2" -> return  print
-                _ -> do
-                    putStrLn "Sorry, didn't quite catch that.\nLet's try again.\n"
-                    inp
-        loop :: (String -> IO ()) -> IO ()
-        loop fn = putStr "γ> " >> getLine >>= fn >> loop fn
-     in do
-            let bLn = replicate 80 '='
-            putStrLn $
-                mconcat
-                    [ bLn,
-                      "\n",
-                      "Hello, and welcome to the FMCt REPL \n",
-                      "May the λ be with you!\n",
-                      bLn
-                    ]
-            inp >>= loop
--}
+parser :: IO ()
+parser =
+  let
+    console = "γ>"
+  in do 
+    print console
+    result <- parseFMC' <$> getLine
+    print $ pShow <$> result 
