@@ -1,29 +1,32 @@
-cabal-version:          2.4
-name:                   FMCt
-version:                0.6.0.0
-license:                BSD-3-Clause
-license-file:           LICENSE
-author:                 Vlad Posmangiu Luchian
-maintainer:             cstmlcodes@gmail.com
-copyright:              "Copyright belongs to Vlad Posmangiu Luchian, 2021."
-category:               Language
-build-type:             Simple
-extra-source-files:     CHANGELOG.md,README.md
+cabal-version:      2.4
+name:               FMCt
+version:            0.6.0.0
+license:            BSD-3-Clause
+license-file:       LICENSE
+author:             Vlad Posmangiu Luchian
+maintainer:         cstmlcodes@gmail.com
+copyright:          "Copyright belongs to Vlad Posmangiu Luchian, 2021."
+category:           Language
+build-type:         Simple
+extra-source-files:
+  CHANGELOG.md
+  README.md
 
 common GHC-flags
-  Ghc-Options:
-    -Wall
-    -Wno-name-shadowing
-    -Wno-unuused-top-binds
-
-  default-language:
-    Haskell2010
+  ghc-options:      -Wall -Wno-name-shadowing -Wno-unuused-top-binds
+  default-language: Haskell2010
 
 common common-extensions
   default-extensions:
-    OverloadedStrings, LambdaCase, FlexibleInstances, FlexibleContexts,
-    RankNTypes, ScopedTypeVariables, TypeApplications, TypeFamilies,
+    FlexibleContexts
+    FlexibleInstances
     InstanceSigs
+    LambdaCase
+    OverloadedStrings
+    RankNTypes
+    ScopedTypeVariables
+    TypeApplications
+    TypeFamilies
 
 common library-modules
   other-modules:
@@ -32,32 +35,29 @@ common library-modules
     FMCt.Evaluator
     FMCt.Examples
     FMCt.Parsing
+    FMCt.Parsing.Terms
+    FMCt.Parsing.Types
     FMCt.Pretty
     FMCt.Syntax
     FMCt.TypeChecker
-    FMCt.Parsing.Types
-    FMCt.Parsing.Terms
-    FMCt.Parsing.Types
 
 common library-specs
-  import: GHC-flags
-  import: common-extensions
-  import: library-modules
+  import:         GHC-flags
+  import:         common-extensions
+  import:         library-modules
   build-depends:
-    base,
-    containers,
-    data-default,
-    lens,
-    parsec,
-    transformers,
+    , base
+    , containers
+    , data-default
+    , lens
+    , parsec
+    , transformers
 
-  hs-source-dirs:
-    src
-
+  hs-source-dirs: src
 
 library
-  import:            library-specs
-  exposed-modules:   FMCt
+  import:          library-specs
+  exposed-modules: FMCt
 
 executable FMCt-exe
   import:         GHC-flags
@@ -65,8 +65,14 @@ executable FMCt-exe
   hs-source-dirs: app
   main-is:        Main.hs
   build-depends:
-    FMCt, base, containers, data-default,
-    lens, mtl, parsec, transformers,
+    , base
+    , containers
+    , data-default
+    , FMCt
+    , lens
+    , mtl
+    , parsec
+    , transformers
 
 test-suite fmct-test
   import:         library-specs
@@ -75,5 +81,10 @@ test-suite fmct-test
   hs-source-dirs: test
   other-modules:  TestGenerators
   build-depends:
-    tasty-expected-failure,tasty-hedgehog,tasty-hunit,
-    tasty-quickcheck,tasty,QuickCheck,hedgehog,
+    , hedgehog
+    , QuickCheck
+    , tasty
+    , tasty-expected-failure
+    , tasty-hedgehog
+    , tasty-hunit
+    , tasty-quickcheck
