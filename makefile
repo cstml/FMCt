@@ -1,5 +1,8 @@
 .PHONY: clean reformat build lint-watch compile-watch haddock-generate \
-				repl-start documentation
+				repl-start documentation test all-files tags
+
+tags:
+	hasktags . 
 
 # Run the main executable
 run: build
@@ -10,27 +13,33 @@ build:
 	cabal new-build
 
 # Starts a repl
-repl-start:
+repl:
 	cabal new-repl
 
-# Start a lint watcher
-lint-watch:
-	$$(git ls-tree -r HEAD --full-tree --name-only | grep -E '.*\.hs') | entr hlint .
+test:
+	cabal new-test
 
 lint:
 	hlint .
 
+# Start a lint watcher
+watch-lint:
+	git ls-tree -r HEAD --full-tree --name-only | grep -E '.*\.hs' | entr make lint 
+
 # Start a compilation watcher
-compile-watch:
+watch-compile:
 	ghcid --command 'ghcid --command "cabal repl lib:FMCt"'
 
 # Start a compilation watcher
 watch-all:
-	$$(git ls-tree -r HEAD --full-tree --name-only | grep -E '.*\.hs') | entr cabal new-build all
+	git ls-tree -r HEAD --full-tree --name-only | grep -E '.*\.hs' | entr cabal new-build all
+
+all-files:
+	git ls-tree -r HEAD --full-tree --name-only | grep -E '.*\.hs'
 
 # Make the documentation and automatically refresh it
 haddock-watch:
-	$$(git ls-tree -r HEAD --full-tree --name-only | grep -E '.*\.hs') | entr cabal v2-haddock executables
+	git ls-tree -r HEAD --full-tree --name-only | grep -E '.*\.hs' | entr cabal v2-haddock executables
 
 # Will create the documentation and then open a browser with it
 documentation:

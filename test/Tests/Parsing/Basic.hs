@@ -1,9 +1,9 @@
-module Test.Main where
+module Tests.Parsing.Basic where
 
 import Test.Tasty (defaultMain, testGroup, TestTree)
 import Test.Tasty.HUnit (assertEqual, testCase)
 
-import Tests.Parsing.Basic
+import FMCt
 
 double x = x * 2
 
@@ -22,17 +22,3 @@ parsingTest =
       , tStr "x.x" (V "x" $ V "x" St)
       , tStr "x.X" (V "x" $ V "X" St)
       ]
-
-unitTests = 
-    testGroup
-        "Unit tests"
-        [ doublingMakesNumbersBigger
-        , halvingMakesNumbersSmaller
-        , parsingTest
-        ]
-
-doublingMakesNumbersBigger =
-    testCase "Double of 4 is 8" $ assertEqual [] 8 (double 4)
-
-halvingMakesNumbersSmaller =
-    testCase "Half of 9 is 4" $ assertEqual [] 4 (half 9)

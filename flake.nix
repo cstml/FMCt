@@ -22,6 +22,7 @@
           ghcid
           hasktags
           zlib
+          hasktags
         ];
 
         project = returnShellEnv:
