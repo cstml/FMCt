@@ -45,12 +45,12 @@ genPush = do
             l <- genTerm
             pure $
                 mconcat
-                    [ "[",
-                      t,
-                      "]",
-                      lo,
-                      ";",
-                      l
+                    [ "["
+                    , t
+                    , "]"
+                    , lo
+                    , ";"
+                    , l
                     ]
 
 genPop :: Gen String

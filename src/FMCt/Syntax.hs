@@ -5,15 +5,14 @@
 -- Description : Syntax module of the FMCt.
 --
 -- Syntax module of the FMCt.
-module FMCt.Syntax
-    ( Lo (..),
-      T,
-      Tm (..),
-      Type (..),
-      Vv,
-      module P,
-    )
-where
+module FMCt.Syntax (
+    Lo (..),
+    T,
+    Tm (..),
+    Type (..),
+    Vv,
+    module P,
+) where
 
 import FMCt.Aux.Pretty as P
 

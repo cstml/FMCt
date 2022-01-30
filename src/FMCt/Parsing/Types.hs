@@ -84,22 +84,22 @@ higherType = do
 termType :: Parser T
 termType =
     choice
-        [ try higherType,
-          try emptyType,
-          try vectorType,
-          try locationType,
-          try constantType,
-          try variableType,
-          try uniqueType
+        [ try higherType
+        , try emptyType
+        , try vectorType
+        , try locationType
+        , try constantType
+        , try variableType
+        , try uniqueType
         ]
 
 -- | Selected types
 termType' :: Parser T
 termType' =
     choice
-        [ try vectorType,
-          try emptyType,
-          try locationType,
-          try constantType,
-          try variableType
+        [ try vectorType
+        , try emptyType
+        , try locationType
+        , try constantType
+        , try variableType
         ]

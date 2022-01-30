@@ -25,7 +25,7 @@ common common-extensions
     RankNTypes, ScopedTypeVariables, TypeApplications, TypeFamilies,
     InstanceSigs
 
-common modules
+common library-modules
   other-modules:
     FMCt.Aux.Pretty
     FMCt.Aux.ToTex
@@ -42,7 +42,7 @@ common modules
 common library-specs
   import: GHC-flags
   import: common-extensions
-  import: modules
+  import: library-modules
   build-depends:
     base,
     containers,
@@ -54,69 +54,22 @@ common library-specs
   hs-source-dirs:
     src
 
-common common-specs
-  import: GHC-flags
-  import: common-extensions
-  import: modules
-
-  build-depends:
-    base,
-    containers,
-    data-default,
-    lens,
-    mtl,
-    parsec,
-    transformers,
-
-  build-depends:
-    aeson,
-    base,
-    clay,
-    http-types,
-    lucid,
-    scotty,
-    text,
-    wai-extra,
-
-  hs-source-dirs:
-    src
 
 library
   import:            library-specs
   exposed-modules:   FMCt
 
 executable FMCt-exe
-  import:            common-specs
-  hs-source-dirs:    app
-  main-is:           Main.hs
-
-executable FMCt-web
-  import:            common-specs
-  main-is:           Main.hs
-  hs-source-dirs:    webApp
-
-
-  other-modules:
-    FMCt.Web
-    FMCt.Web.Components.Brick
-    FMCt.Web.Components.MainPage
-    FMCt.Web.Components.RegularPage
-    FMCt.Web.Helpers.Heroku
-    FMCt.Web.MainWebsite
-    FMCt.Web.Pages.Derive
-    FMCt.Web.Pages.Evaluator
-    FMCt.Web.Pages.Root
-    FMCt.Web.Style.BootStrap
-    FMCt.Web.Style.MainStyle
-    FMCt.Web.Style.StdStylingHeader
-
+  import:         GHC-flags
+  import:         common-extensions
+  hs-source-dirs: app
+  main-is:        Main.hs
   build-depends:
-    base,scotty,text,clay,lucid,aeson,FMCt,wai-extra,
-    http-types,
+    FMCt, base, containers, data-default,
+    lens, mtl, parsec, transformers,
 
 test-suite fmct-test
   import:         library-specs
-  import:         common-specs
   type:           exitcode-stdio-1.0
   main-is:        Main.hs
   hs-source-dirs: test

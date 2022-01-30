@@ -1,20 +1,19 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module FMCt.Evaluator
-    ( -- ** Types.
-      Binds,
-      Memory,
-      State,
-      EvalState (..),
+module FMCt.Evaluator (
+    -- ** Types.
+    Binds,
+    Memory,
+    State,
+    EvalState (..),
 
-      -- ** Lens.
-      memory,
-      binds,
+    -- ** Lens.
+    memory,
+    binds,
 
-      -- ** Evaluator.
-      eval,
-    )
-where
+    -- ** Evaluator.
+    eval,
+) where
 
 import Control.Lens
 import Control.Monad.Trans.Class
@@ -33,8 +32,8 @@ type Binds = M.Map Vv Tm
 
 -- | FMCt State is formed from a tuple of Memory and Binds
 data EvalState = EvalState
-    { _memory :: Memory,
-      _binds :: Binds
+    { _memory :: Memory
+    , _binds :: Binds
     }
     deriving (Show, Eq)
 
@@ -69,8 +68,8 @@ pop l = do
     lift . put $
         s & memory . at l . _Just
             %~ ( \case
-                     [] -> []
-                     _ : xs -> xs
+                    [] -> []
+                    _ : xs -> xs
                )
     return e
 

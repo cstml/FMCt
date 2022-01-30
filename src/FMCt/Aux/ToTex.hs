@@ -1,10 +1,9 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
-module FMCt.Aux.ToTex
-    ( saveDiagram,
-    )
-where
+module FMCt.Aux.ToTex (
+    saveDiagram,
+) where
 
 import FMCt.Parsing (parseFMC)
 import FMCt.Syntax
@@ -17,8 +16,8 @@ writeLocally :: String -> String -> IO ()
 writeLocally title str =
     writeFile
         ( "../../deliverables/02-dissertation/tex/files/diagrams/"
-              ++ title
-              ++ ".tex"
+            ++ title
+            ++ ".tex"
         )
         str
 
@@ -50,14 +49,15 @@ class ToTex a where
     toTex :: a -> String
 
 instance ToTex Lo where
-    toTex = _term . \case
-        La -> " \\lambda "
-        Out -> "out "
-        In -> "in "
-        Rnd -> "rnd "
-        Nd -> "nd "
-        Ho -> " \\gamma "
-        Lo x -> x ++ " "
+    toTex =
+        _term . \case
+            La -> " \\lambda "
+            Out -> "out "
+            In -> "in "
+            Rnd -> "rnd "
+            Nd -> "nd "
+            Ho -> " \\gamma "
+            Lo x -> x ++ " "
 
 instance ToTex Tm where
     toTex = \case

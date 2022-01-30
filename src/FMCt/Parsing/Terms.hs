@@ -21,8 +21,8 @@ abstraction = do
     t <- spaces >> char ':' >> spaces >> absTy <* spaces <* char '>'
     t2 <- (spaces >> separator >> spaces >> term) <|> omittedStar
     return $ B v t l t2
-    where
-        absTy = try higherType <|> try uniqueType
+  where
+    absTy = try higherType <|> try uniqueType
 
 application :: Parser Tm
 application = do

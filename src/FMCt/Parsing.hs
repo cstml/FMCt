@@ -1,11 +1,10 @@
-module FMCt.Parsing
-    ( parseFMC,
-      parseType,
-      parseFMCtoString,
-      parseFMC',
-      PError (..),
-    )
-where
+module FMCt.Parsing (
+    parseFMC,
+    parseType,
+    parseFMCtoString,
+    parseFMC',
+    PError (..),
+) where
 
 import qualified Control.Exception as E
 import Control.Monad (void)

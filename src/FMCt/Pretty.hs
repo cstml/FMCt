@@ -1,8 +1,7 @@
-module FMCt.Pretty
-    ( printStack,
-      printSubs,
-    )
-where
+module FMCt.Pretty (
+    printStack,
+    printSubs,
+) where
 
 import Control.Lens
 import Data.Map as M
@@ -12,11 +11,11 @@ import FMCt.TypeChecker
 
 printStack :: EvalState -> String
 printStack s = mconcat ["Memory: \n", printer m, "Bindings: \n", printer b]
-    where
-        m = M.toList $ s ^. memory
-        b = M.toList $ s ^. binds
-        printer [] = ""
-        printer ((l, ts) : xs) = show l ++ "[" ++ show ts ++ "]" ++ "\n" ++ printer xs
+  where
+    m = M.toList $ s ^. memory
+    b = M.toList $ s ^. binds
+    printer [] = ""
+    printer ((l, ts) : xs) = show l ++ "[" ++ show ts ++ "]" ++ "\n" ++ printer xs
 
 -- | Pretty Prints all the bindings in a context for derivation from TypeChecker 2.
 printBindings2 :: Derivation -> String
