@@ -90,30 +90,6 @@ executable FMCt-exe
   hs-source-dirs:    app
   main-is:           Main.hs
 
-executable FMCt-web
-  import:            common-specs
-  main-is:           Main.hs
-  hs-source-dirs:    webApp
-
-
-  other-modules:
-    FMCt.Web
-    FMCt.Web.Components.Brick
-    FMCt.Web.Components.MainPage
-    FMCt.Web.Components.RegularPage
-    FMCt.Web.Helpers.Heroku
-    FMCt.Web.MainWebsite
-    FMCt.Web.Pages.Derive
-    FMCt.Web.Pages.Evaluator
-    FMCt.Web.Pages.Root
-    FMCt.Web.Style.BootStrap
-    FMCt.Web.Style.MainStyle
-    FMCt.Web.Style.StdStylingHeader
-
-  build-depends:
-    base,scotty,text,clay,lucid,aeson,FMCt,wai-extra,
-    http-types,
-
 test-suite fmct-test
   import:         library-specs
   import:         common-specs
