@@ -38,6 +38,7 @@ common library-modules
     FMCt.Parsing
     FMCt.Parsing.Terms
     FMCt.Parsing.Types
+    FMCt.Parsing.Language
     FMCt.Pretty
     FMCt.Syntax
     FMCt.TypeChecker

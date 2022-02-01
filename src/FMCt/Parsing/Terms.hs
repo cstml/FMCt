@@ -8,12 +8,21 @@ import FMCt.Parsing.Types
 import FMCt.Syntax
 import Text.ParserCombinators.Parsec
 
--- | Term Parser.
 term :: Parser Tm
-term = choice . fmap try $ [application, abstraction, inferredTypeAbstraction, variable, star] 
+term = mconcat <$> pTerm `sepEndBy1` (char ';') 
+
+-- | Term Parser.
+pTerm :: Parser Tm
+pTerm =  choice . fmap try $ 
+  [ application
+  , abstraction
+  , inferredTypeAbstraction
+  , variable
+  , star
+  ]
 
 -- | Abstraction Parser.
--- Example: lo<x:a>
+-- Example: lo<x:a>;*
 abstraction :: Parser Tm
 abstraction =
   let
@@ -24,8 +33,7 @@ abstraction =
     v <- binder
     between spaces spaces typeSep
     ty <- absTy <* spaces <* rAbsBrck
-    t2 <- (spaces >> separator >> spaces >> term) <|> omittedStar
-    return $ B v ty l t2
+    return $ B v ty l St
 
 -- | Abstraction Parser.
 -- Example: lo<x:a>
@@ -35,27 +43,22 @@ inferredTypeAbstraction = do
     lAbsBrck >> spaces
     v <- binder
     let ty = TVar "_"
-    t2 <- (spaces >> separator >> spaces >> term) <|> omittedStar
-    return $ B v ty l t2
+    return $ B v ty l St 
   
 
 application :: Parser Tm
 application = do
     t <- between (char '[') (char ']') (term <|> omittedStar)
     l <- location
-    t2 <- (spaces >> separator >> spaces >> term) <|> omittedStar
-    return $ P t l t2
+    return $ P t l St
 
 variable :: Parser Tm
 variable = do
     x <- spaces >> (many1 alphaNumeric <|> many1 operators)
-    t2 <- (spaces >> separator >> spaces >> term) <|> omittedStar
-    return $ V x t2
+    return $ V x St
 
 star :: Parser Tm
-star =
-    (eof >> return St)
-        <|> (void (char '*') >> return St)
+star = (eof >> return St) <|> (void (char '*') >> return St)
 
 omittedStar :: Parser Tm
 omittedStar = (string "") >> return St

@@ -17,7 +17,7 @@ repl:
 	cabal new-repl
 
 test:
-	cabal new-test
+	cabal new-test all
 
 lint:
 	hlint .
@@ -33,6 +33,9 @@ watch-compile:
 # Start a compilation watcher
 watch-all:
 	git ls-tree -r HEAD --full-tree --name-only | grep -E '.*\.hs' | entr cabal new-build all
+
+watch-test:
+	make all-files | entr make test
 
 all-files:
 	git ls-tree -r HEAD --full-tree --name-only | grep -E '.*\.hs'
