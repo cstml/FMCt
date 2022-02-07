@@ -9,11 +9,16 @@ import FMCt.Syntax
 import Text.ParserCombinators.Parsec
 
 term :: Parser Tm
-term = mconcat <$> pTerm `sepEndBy1` (char ';') 
+term = let 
+    sequence = mconcat <$> pTerm `sepBy1` (between spaces spaces  $ char ';')
+    term1 = between spaces spaces pTerm <* eof
+  in 
+    choice
+      [ try sequence
+      , try term1 ]
 
--- | Term Parser.
 pTerm :: Parser Tm
-pTerm =  choice . fmap try $ 
+pTerm = choice .  fmap try $
   [ application
   , abstraction
   , inferredTypeAbstraction
@@ -41,10 +46,10 @@ inferredTypeAbstraction :: Parser Tm
 inferredTypeAbstraction = do
     l <- location
     lAbsBrck >> spaces
-    v <- binder
+    v <- binder <* spaces <* rAbsBrck
     let ty = TVar "_"
-    return $ B v ty l St 
-  
+    return $ B v ty l St
+
 
 application :: Parser Tm
 application = do
@@ -58,7 +63,7 @@ variable = do
     return $ V x St
 
 star :: Parser Tm
-star = (eof >> return St) <|> (void (char '*') >> return St)
+star = (spaces >> eof >> return St) <|> (spaces >> char '*' >> spaces >> return St)
 
 omittedStar :: Parser Tm
 omittedStar = (string "") >> return St

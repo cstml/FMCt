@@ -1,16 +1,16 @@
 .PHONY: clean reformat build lint-watch compile-watch haddock-generate \
 				repl-start documentation test all-files tags
 
+# Build the main executable with nix
+build:
+	cabal new-build all
+
 tags:
-	hasktags . 
+	hasktags .
 
 # Run the main executable
 run: build
 	cabal new run FMCt-web
-
-# Build the main executable with nix
-build:
-	cabal new-build
 
 # Starts a repl
 repl:
@@ -24,7 +24,7 @@ lint:
 
 # Start a lint watcher
 watch-lint:
-	git ls-tree -r HEAD --full-tree --name-only | grep -E '.*\.hs' | entr make lint 
+	git ls-tree -r HEAD --full-tree --name-only | grep -E '.*\.hs' | entr make lint
 
 # Start a compilation watcher
 watch-compile:

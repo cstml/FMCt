@@ -27,7 +27,7 @@ variableType = do
 uniqueType :: Parser T
 uniqueType = do
     _ <- between spaces spaces $ char '_'
-    return $ TVar "inferA" :=> TVar "inferB" -- this gets changed to a unique variable at typecheck time
+    return $ TVar "_"  -- this gets changed to a unique variable at typecheck time
     -- TODO: preparser that changes these to fresh vars
 
 -- | Constant Type

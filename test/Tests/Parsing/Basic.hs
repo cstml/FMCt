@@ -9,19 +9,23 @@ parsingTests = testGroup "All Parsing Tests"
   [ parseVariable
   , inferredTypes
   , parsePush
+  , parsePop
   ]
 
-parseVariable =                                              
+parseVariable =
   let
     tStr str repr = testCase str $ assertEqual str (pure repr) (parseFMC' str)
   in
     testGroup "Variable Parsing Tests"
-      [ tStr "x;*"  (V "x" St)
-      , tStr "    x    "   (V "x" St)
-      , tStr " +" (V "+" St)
-      , tStr "x;x" (V "x" $ V "x" St)
-      , tStr "x;x" (V "x" $ V "x" St)
-      , tStr "x;X" (V "x" $ V "X" St)
+      [ tStr "x    "  $ V "x" St
+      , tStr " y;*    "  $ V "y" St
+      , tStr " *    "  St
+      , tStr "x ; x;" $ V "x" $ V "x" St
+      , tStr "    x;  "   $ V "x" St
+      , tStr " +"  $ V "+" St 
+      , tStr "x;x" $ V "x" $ V "x" St
+      , tStr "x;x" $ V "x" $ V "x" St
+      , tStr "x;X" $ V "x" $ V "X" St
       , tStr "*" St
       , tStr "" St
       ]
@@ -37,16 +41,17 @@ parsePush =
     , tPush "[[]]"    $ P (P St La St) La St
     , tPush "[[]in]out" $ P (P St In St) Out St
     ]
-{-
-failPush =
+
+parsePop =
   let
-    tFPush str err = testCase str $ assertEqual str (Left . pure $  err) (parseFMC' str)
+    tPop str repr = testCase str $ assertEqual str (pure repr) (parseFMC' str)
   in
-  testGroup "Failed Push Terms"
-  [
-    tFPush "[x" "FMCParser"
-  ]
--}
+    testGroup "Pop Term" 
+    [ tPop "<x>" $ B ("x") (TVar "_") La St
+    , tPop "in<x> ; <x>" $ B "x" (TVar "_") In $ B "x" (TVar "_") La St
+    , tPop "in<x> ; <y:_>" $ B "x" (TVar "_") In $ B "y" (TVar "_") La St
+    , tPop "in<x> ; <y:_> ; [<z>;*] ;*" $ B "x" (TVar "_") In $ B "y" (TVar "_") La $ P (B "z" (TVar "_") La St ) La St
+    ]
 
 inferredTypes :: TestTree
 inferredTypes =
