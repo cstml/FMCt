@@ -14,7 +14,7 @@ parsingTests = testGroup "All Parsing Tests"
 
 parseVariable =
   let
-    tStr str repr = testCase str $ assertEqual str (pure repr) (parseFMC' str)
+    tStr str repr = testCase str $ assertEqual str (pure repr) (parseFMC str)
   in
     testGroup "Variable Parsing Tests"
       [ tStr "x    "  $ V "x" St
@@ -22,7 +22,7 @@ parseVariable =
       , tStr " *    "  St
       , tStr "x ; x;" $ V "x" $ V "x" St
       , tStr "    x;  "   $ V "x" St
-      , tStr " +"  $ V "+" St 
+      , tStr " +"  $ V "+" St
       , tStr "x;x" $ V "x" $ V "x" St
       , tStr "x;x" $ V "x" $ V "x" St
       , tStr "x;X" $ V "x" $ V "X" St
@@ -32,7 +32,7 @@ parseVariable =
 
 parsePush =
   let
-    tPush str repr = testCase str $ assertEqual str (pure repr) (parseFMC' str)
+    tPush str repr = testCase str $ assertEqual str (pure repr) (parseFMC str)
   in
     testGroup "Push Terms"
     [ tPush "[x]in"   $ P (V "x" St) In St
@@ -44,7 +44,7 @@ parsePush =
 
 parsePop =
   let
-    tPop str repr = testCase str $ assertEqual str (pure repr) (parseFMC' str)
+    tPop str repr = testCase str $ assertEqual str (pure repr) (parseFMC str)
   in
     testGroup "Pop Term" 
     [ tPop "<x>" $ B ("x") (TVar "_") La St
@@ -56,7 +56,7 @@ parsePop =
 inferredTypes :: TestTree
 inferredTypes =
   let
-    tStr str repr = testCase "Inferred Term" $ assertEqual str (pure repr) (parseFMC' str)
+    tStr str repr = testCase "Inferred Term" $ assertEqual str (pure repr) (parseFMC str)
   in
     testGroup "Inferred Application/Pop Terms;"
     [ tStr "in<x>;*" (B "x" (TVar "_") In St)

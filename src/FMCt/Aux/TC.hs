@@ -29,7 +29,7 @@ flat :: Either a (Either a b) -> Either a b
 flat = either Left id
 
 -- | Pre parses the Term for primitives and adds their type to the context.
-buildContext :: Context -> Term -> Either TError Context
+buildContext :: TypingContext -> Term -> Either TError Context
 buildContext eCtx =
     let i = TCon "Int"
         b = TCon "Bool"

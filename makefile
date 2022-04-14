@@ -1,5 +1,5 @@
 .PHONY: clean reformat build lint-watch compile-watch haddock-generate \
-				repl-start documentation test all-files tags
+				repl-start documentation test all-files tags mkTags
 
 # Build the main executable with nix
 build:
@@ -31,7 +31,7 @@ watch-compile:
 	ghcid --command 'ghcid --command "cabal repl lib:FMCt"'
 
 # Start a compilation watcher
-watch-all:
+watch-all: mkTags
 	git ls-tree -r HEAD --full-tree --name-only | grep -E '.*\.hs' | entr cabal new-build all
 
 watch-test:
@@ -51,6 +51,9 @@ documentation:
 	|| firefox ./dist-newstyle/build/x86_64-linux/ghc-8.6.5/FMCt-0.5.0.0/x/FMCt-web/doc/html/FMCt/FMCt-web/index.html \
     || echo "it seems like I cannot find the index. Look at the last line as it should indicate where the index.html is saved. Open it in a browser."
 
+mkTags:
+	hasktags .
+
 # Add folder locations to the list to be reformatted.
 fourmolu-format:
 	fourmolu \
@@ -61,3 +64,4 @@ fourmolu-format:
 		-o -XPatternSynonyms \
 		-o -fplugin=RecordDotPreprocessor\
 	    $$(git ls-tree -r HEAD --full-tree --name-only | grep -E '.*\.hs')
+

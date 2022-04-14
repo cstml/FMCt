@@ -3,28 +3,37 @@ module FMCt.Pretty (
     printSubs,
 ) where
 
+import FMCt.TypeChecker.Aux (sTo, sFrom)
 import Control.Lens
-import Data.Map as M
+import Data.Map as Map
 import FMCt.Evaluator
 import FMCt.Syntax
 import FMCt.TypeChecker
+import Control.Arrow ((>>>))
+import FMCt.TypeChecker.Aux
 
 printStack :: EvalState -> String
 printStack s = mconcat ["Memory: \n", printer m, "Bindings: \n", printer b]
   where
-    m = M.toList $ s ^. memory
-    b = M.toList $ s ^. binds
+    m = Map.toList $ s ^. memory
+    b = Map.toList $ s ^. binds
     printer [] = ""
     printer ((l, ts) : xs) = show l ++ "[" ++ show ts ++ "]" ++ "\n" ++ printer xs
 
 -- | Pretty Prints all the bindings in a context for derivation from TypeChecker 2.
 printBindings2 :: Derivation -> String
-printBindings2 = auxCtxPP . getContext
+printBindings2 = view judgement >>> auxCtxPP 
 
 -- | Shared Pretty Printer.
-auxCtxPP :: [(String, T)] -> String
-auxCtxPP = mconcat . fmap (\(b, t) -> mconcat [" ", b, " : ", pShow t, "\n"])
+auxCtxPP :: Judgement -> String
+auxCtxPP =
+  view jContext
+  >>> Map.toList
+  >>> fmap (\(b, t) -> mconcat [" ", b, " : ", pShow t, "\n"])
+  >>> mconcat
 
 -- | Pretty Prints substitutions
 printSubs :: [TSubs] -> String
-printSubs = mconcat . fmap (\(x, y) -> mconcat [" ", pShow x, " ~> ", pShow y, "\n"])
+printSubs =
+  fmap (\a -> let x = a ^. sFrom ; y = a ^. sTo in  mconcat [" ", pShow x, " ~> ", pShow y, "\n"])
+  >>> mconcat

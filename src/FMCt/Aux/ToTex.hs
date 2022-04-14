@@ -5,12 +5,14 @@ module FMCt.Aux.ToTex (
     saveDiagram,
 ) where
 
+import FMCt.TypeChecker.Aux
 import FMCt.Parsing (parseFMC)
 import FMCt.Syntax
 import FMCt.TypeChecker
 import System.IO (writeFile)
+import Control.Monad
 
--- | Saves diagram to a predefined location - for my disertation. Not useful for
+-- | Saves diagram to a predefined location - for my dissertation. Not useful for
 -- you.
 writeLocally :: String -> String -> IO ()
 writeLocally title str =
@@ -28,7 +30,8 @@ saveDiagram ::
     -- | Term to be Parsed
     String ->
     IO ()
-saveDiagram diagName term = either (print .show) (writeLocally diagName . _math . toTex) $ (derive2 . parseFMC) term
+saveDiagram diagName str = undefined 
+--  either (print . show) (writeLocally diagName . _math . toTex) . derive . either (const St) id $ parseFMC str
 
 _term :: String -> String
 _term x = "\\term{ " ++ x ++ " } "
@@ -83,11 +86,11 @@ instance ToTex T where
         TLoc l t -> toTex l ++ "( " ++ toTex t ++ " )"
         t1 :=> t2 -> toTex t1 ++ " \\To " ++ toTex t2
 
-instance ToTex Context where
+instance ToTex TypingContext where
     toTex _ = "\\Gamma "
 
 instance ToTex Judgement where
-    toTex (ctx, term, t) = toTex ctx ++ "\\vdash " ++ toTex term ++ ":" ++ _type (toTex t)
+    toTex (Judgement ctx term t) = toTex ctx ++ "\\vdash " ++ toTex term ++ ":" ++ _type (toTex t)
 
 instance ToTex Derivation where
     toTex = \case

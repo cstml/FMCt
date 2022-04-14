@@ -28,6 +28,15 @@ common common-extensions
     TypeApplications
     TypeFamilies
 
+common evaluator-modules
+  hs-source-dirs: src
+  other-modules:
+    FMCt.Aux.Pretty
+    FMCt.Evaluator
+    FMCt.Parsing
+    FMCt.Syntax
+    FMCt.TypeChecker
+    
 common library-modules
   hs-source-dirs: src
   other-modules:
@@ -74,12 +83,20 @@ executable FMCt-exe
     , parsec
     , transformers
 
+executable evaluator
+  import: common-extensions
+  import: evaluator-modules
+  build-depends: , base , containers , data-default , lens , parsec , transformers
+  hs-source-dirs: app
+  main-is:        Main.hs
+    
 test-suite fmct-test
   import:         library-specs
   type:           exitcode-stdio-1.0
   main-is:        Main.hs
   hs-source-dirs: test
   other-modules:  TestGenerators
+                  Generators.Parser
   build-depends:
     , hedgehog
     , QuickCheck

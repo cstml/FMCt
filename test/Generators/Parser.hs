@@ -1,4 +1,4 @@
-module Generators.Parse where
+module Generators.Parser where 
 
 import Control.Monad (forM_, void)
 import Control.Monad.ST
@@ -12,13 +12,16 @@ import FMCt.Syntax
 import FMCt.TypeChecker
 import Test.QuickCheck
 
--- all terms are equal to themselves
-pRefl :: Property
-pRefl = forAll genTerm (\x -> x === x)
+import Generators.Instances
 
--- test it
-pReflTest :: IO ()
-pReflTest = quickCheck pRefl
+-- | Parser Tester: the type and its underlying parse value
+newtype PT a = PT { getRepr :: (a , String) }
+
+instance Arbitrary (PT T) where
+  arbitrary = (\t -> PT (t, pShow t)) <$> arbitrary
+    
+instance Arbitrary (PT Lo) where
+  arbitrary = (\x-> PT (Lo x,x)) <$> arbitrary
 
 genTerm :: Gen String
 genTerm = oneof [genPush, genStar, genVar, genPop]
@@ -28,7 +31,7 @@ genStar = pure "*"
 
 genVar :: Gen String
 genVar = do
-    v <- genString
+    v <- arbitrary
     if v == "*"
         then return v
         else do
@@ -55,10 +58,10 @@ genPush = do
 
 genPop :: Gen String
 genPop = do
-    t <- genString
+    t <- arbitrary
     lo <- genLoc
     l <- genTerm
     pure $ mconcat [lo, "<", t, ">", ";", l]
 
 genLoc :: Gen String
-genLoc = genString
+genLoc = arbitrary

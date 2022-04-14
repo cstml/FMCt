@@ -1,18 +1,33 @@
+{-#LANGUAGE TemplateHaskell #-}
 module FMCt.TypeChecker.Aux where
 
 import Control.Monad (join)
 import FMCt.Syntax
 import FMCt.TypeChecker.Error
 import Text.Read (readMaybe)
+import Control.Lens
+import qualified Data.Set as Set
+import qualified Data.Map as Map
 
 type Term = Tm
 
-type Context = [(Vv, T)]
+type TypingContext = Map.Map Vv T
 
-type Judgement = (Context, Term, T)
+data Judgement = Judgement
+  { _jContext :: TypingContext
+  , _jTerm ::  Term
+  , _jType :: T
+   } deriving (Show,Eq)
+
+makeLenses ''Judgement
 
 -- | A type substitution is a pair of types
-type TSubs = (T, T)
+data TSubs = TSubs
+  { _sFrom :: T
+  , _sTo :: T
+  } deriving (Show,Eq)
+
+makeLenses ''TSubs
 
 data Operations
     = Add
@@ -22,6 +37,8 @@ data Operations
     | Modulus
     | If
     deriving (Eq, Ord)
+
+makePrisms ''Operations
 
 instance Read Operations where
     readsPrec _ = \case
@@ -43,27 +60,10 @@ instance Show Operations where
         Divide -> "/"
 
 -- | Merge contexts
-mergeCtx :: Context -> Context -> Either TError Context
-mergeCtx ox oy = makeSet ox oy
-  where
-    makeSet [] x = pure x
-    makeSet (t : xs) [] = (t :) <$> makeSet xs oy
-    makeSet t@((term, ty) : xs) ((term', ty') : ys) =
-        if term /= term'
-            then makeSet t ys
-            else
-                if ty == ty'
-                    then makeSet xs oy
-                    else
-                        Left . ErrOverride $
-                            "Type Conflict between: "
-                                ++ show term
-                                ++ ":"
-                                ++ show ty
-                                ++ " and "
-                                ++ show term'
-                                ++ ":"
-                                ++ show ty'
+mergeCtx :: TypingContext -> TypingContext -> Either TError TypingContext
+mergeCtx ox oy = case  (Map.toList $ Map.intersection ox oy) of 
+    [] -> pure $ Map.union ox oy
+    x -> Left . ErrOverride $ "Type Conflict between: " <> show x
 
 -- | Normalise gets rid of empty Types at locations.
 normaliseT :: T -> T
@@ -91,13 +91,15 @@ splitStream x = (,) l r
     r = snd <$> (filter (not . odd . fst) $ zip ([1 ..] :: [Integer]) x)
 
 -- | Pre parses the Term for primitives and adds their type to the context.
-buildContext :: Context -> Term -> Either TError Context
-buildContext eCtx =
-    let i = TCon "Int"
-        b = TCon "Bool"
-        to = (mempty :=>)
-        opType :: Operations -> T
-        opType = \case
+buildContext :: TypingContext -> Term -> Either TError TypingContext
+buildContext eCtx = undefined
+{-
+    let
+      i = TCon "Int"
+      b = TCon "Bool"
+      to = (mempty :=>)
+      opType :: Operations -> T
+      opType = \case
             Add -> TVec [i, i] :=> TLoc La i
             Subtract -> TVec [i, i] :=> TLoc La i
             Multiply -> TVec [i, i] :=> TLoc La i
@@ -110,7 +112,7 @@ buildContext eCtx =
                     , TLoc (Lo "if") $ TVar "ifVar1"
                     ]
                     :=> TVec [TLoc La $ TVar "ifVar1"]
-     in \case
+    in \case
             V x St -> do
                 let rInt = (readMaybe x) :: Maybe Int
                 let rBool = (readMaybe x) :: Maybe Bool
@@ -130,11 +132,12 @@ buildContext eCtx =
                 join $ mergeCtx <$> lCtx <*> rCtx
             B _ _ _ t -> buildContext eCtx t
             St -> pure eCtx
-
+-}
+  
 freshTypeVar :: [T]
 freshTypeVar =
     TVar
-        <$> [ mconcat $ [[x], show y]
+        <$> [ [x] <> show y
             | y <- [1 ..] :: [Integer]
             , x <- ['a' .. 'z']
             ]
