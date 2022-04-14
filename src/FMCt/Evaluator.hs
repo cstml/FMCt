@@ -86,9 +86,8 @@ replace :: Vv -> Tm -> Evaluator Tm
 replace b t = do
     m <- lift get
     let bT = fromMaybe St $ m ^. binds . at b
-    if bT == St
-        then pure t
-        else case t of
+    if bT == St then pure t
+      else case t of
             St -> pure St
             V b' t' ->
                 if b == b'

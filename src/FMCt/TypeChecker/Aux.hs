@@ -64,7 +64,7 @@ mergeCtx :: TypingContext -> TypingContext -> Either TError TypingContext
 mergeCtx ox oy = case  (Map.toList $ Map.intersection ox oy) of 
     [] -> pure $ Map.union ox oy
     x -> Left . ErrOverride $ "Type Conflict between: " <> show x
-
+{-
 -- | Normalise gets rid of empty Types at locations.
 normaliseT :: T -> T
 normaliseT t
@@ -83,6 +83,7 @@ normaliseT t
         t1 :=> t2 -> normaliseT t1 :=> normaliseT t2
         TVec (x : xs) -> normaliseT x <> (normaliseT $ TVec xs)
         x -> x -- Just to be sure it gets through.
+-}
 
 splitStream :: [a] -> ([a], [a])
 splitStream x = (,) l r
@@ -136,7 +137,7 @@ buildContext eCtx = undefined
   
 freshTypeVar :: [T]
 freshTypeVar =
-    TVar
+    (TVar . review tVariable)
         <$> [ [x] <> show y
             | y <- [1 ..] :: [Integer]
             , x <- ['a' .. 'z']

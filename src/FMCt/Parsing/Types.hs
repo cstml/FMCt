@@ -6,24 +6,28 @@ import FMCt.Parsing.Aux
 import FMCt.Parsing.Location
 import FMCt.Syntax
 import Text.ParserCombinators.Parsec
+import Control.Lens
 
 -- | Type Parser.
 parseType :: String -> T
 parseType x = either (E.throw . PTypeErr . show) id $ parse termType "TypeParser" x
 
--- |  Type
+-- | Type
 -- Strings beginning with a small letter
+-- 
 -- Example:
 -- >> a
 -- >> b
 variableType :: Parser T
 variableType = do
     x <- many1 smallCapsAlpha <> many alphaNumeric
-    return $ TVar x
+    return . TVar . review tVariable $ x
 
 -- | Unique Variable type
 -- Just an underscore "_"
--- Example: _
+-- 
+-- Example:
+-- >> _
 uniqueType :: Parser T
 uniqueType = do
     _ <- between spaces spaces $ char '_'
@@ -36,7 +40,7 @@ uniqueType = do
 constantType :: Parser T
 constantType = do
     x <- many1 capsAlpha <> many alphaNumeric
-    return $ TCon x
+    return . TCon . review tConstant $ x
 
 -- | Location Types are Types at a specific location
 --
@@ -45,40 +49,40 @@ constantType = do
 -- >> In(Int=>Int)
 locationType :: Parser T
 locationType = do
+    _ <- char '@'
     l <- location
     t <- between (spaces >> char '(') (spaces >> char ')') termType
     return $ TLoc l t
 
--- | Vector Types are a list of types.
+-- | Vector Types are a list of types, between square brackets.
 --
 -- Examples
--- >> a,b,c
--- >> a b c
+-- >> [a,b,c]
+-- >> [a b c]
 vectorType :: Parser T
 vectorType = do
     t <-
         between
-            (spaces >> char '(')
-            (spaces >> char ')')
-            termType
-            `sepBy1` ((char ' ' <* spaces) <|> (spaces *> char ',' <* spaces))
+            (between spaces spaces  $ char '[' )
+            (between spaces spaces  $ char ']' )
+            termType `sepBy1` (spaces >> char ';' >> spaces)
     return $ TVec t
 
 -- | Empty type is empty
 --
--- Examples: e => e,  ()=>e
+-- Examples: ()
 emptyType :: Parser T
 emptyType = do
-    _ <- (spaces >> string "e") <|> string "()"
+    _ <- spaces >> string "()" >> spaces
     return $ TEmp
 
 higherType :: Parser T
 higherType = do
-    --between (char '(') (char ')') $ do
-    t1 <- termType'
-    _ <- spaces >> string "=>" >> spaces
-    t2 <- termType'
-    return $ t1 :=> t2
+    between (char '{') (char '}') $ do
+      t1 <- termType'
+      _ <- spaces >> string "=>" >> spaces
+      t2 <- termType'
+      return $ t1 :=> t2
 
 -- | All Types
 termType :: Parser T
@@ -95,7 +99,7 @@ termType =
 
 -- | Selected types
 termType' :: Parser T
-termType' =
+termType' = termType {-
     choice
         [ try vectorType
         , try emptyType
@@ -103,3 +107,4 @@ termType' =
         , try constantType
         , try variableType
         ]
+-}

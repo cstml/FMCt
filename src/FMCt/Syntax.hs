@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances, DerivingVia, DerivingStrategies, GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE FlexibleInstances, DerivingVia, DerivingStrategies, GeneralizedNewtypeDeriving, TemplateHaskell #-}
 
 -- |
 -- Module      : Syntax
@@ -7,70 +7,19 @@
 -- Syntax module of the FMCt.
 module FMCt.Syntax (
     Lo (..),
-    T,
+    T(..),
     Tm (..),
-    Type (..),
     Vv,
+    TVariable,
+    TConstant,
+    tConstant,
+    tVariable,
     module P,
 ) where
 
+import Control.Lens 
 import FMCt.Aux.Pretty as P
 import Data.String (IsString, fromString)
-
--- | Variable Value is represeted by a String.
-type Vv = String
-
--- | FMC Terms Type
-data Tm
-    = -- | Variable
-      V Vv Tm
-    | -- | Application or Push: [M]a.N
-      P Tm Lo Tm
-    | -- | Abstraction or Pop:  a\<x:t\>.N
-      B Vv T Lo Tm
-    | -- | Star
-      St
-    deriving (Eq, Show)
-
-infixr 9 :=>
-
--- | FMCt Term Types
-type T = Type String
-
-newtype Constant = Constant {getConstant :: String}
-  deriving newtype (Show, Eq, Ord)
-
-instance IsString Constant where
-  fromString = Constant
-
--- | Type data structure
-data Type a
-    = -- | Type Constant.
-      TCon Constant
-    | -- | Type Variable.
-      TVar a
-    | -- | Type Vector.
-      TVec [Type a]
-    | -- | Location Parametrised Type.
-      TLoc Lo (Type a)
-    | -- | A Function Type.
-      Type a :=> Type a
-    | -- | Empty Type.
-      TEmp
-    deriving (Eq, Show, Ord)
-
-instance Semigroup (Type a) where
-    TEmp <> x = x
-    x <> TEmp = x
-    TVec [] <> x = x
-    x <> TVec [] = x
-    x <> TVec y = TVec $ x : y
-    TVec x <> y = TVec $ x ++ [y]
-    xx@(TCon _) <> yy@(TCon _) = TVec [xx, yy]
-    xx <> yy = TVec [xx, yy]
-
-instance Monoid T where
-    mempty = TEmp
 
 -- | Predefined Locations of the FMC together with general locations.
 data Lo
@@ -90,9 +39,66 @@ data Lo
       Lo String
     deriving (Eq, Ord, Show)
 
+-- | Variable Value is represeted by a String.
+type Vv = String
+
+newtype TConstant = TConstant {_tConstant :: String}
+  deriving newtype (Show, Eq, Ord)
+makeLenses ''TConstant
+
+instance IsString TConstant where
+  fromString = review tConstant
+
+newtype TVariable = TVariable {_tVariable :: String}
+  deriving newtype (Show, Eq, Ord)
+makeLenses ''TVariable
+
+instance IsString TVariable where
+  fromString = review tVariable
+
+infixr 9 :=>
+
+  -- | FMCt Term Types
+data T
+    = -- | Type Constant.
+      TCon TConstant
+    | -- | Type Variable.
+      TVar TVariable
+    | -- | Type Vector.
+      TVec [ T ]
+    | -- | Location Parametrised Type.
+      TLoc Lo T
+    | -- | A Function Type.
+      T :=> T
+    | -- | Empty Type.
+      TEmp
+    deriving (Eq, Show, Ord)
+
+-- | FMC Terms Type
+data Tm
+    = -- | Variable
+      V Vv Tm
+    | -- | Application or Push: [M]a.N
+      P Tm Lo Tm
+    | -- | Abstraction or Pop:  a\<x:t\>.N
+      B Vv T Lo Tm
+    | -- | Star
+      St
+    deriving (Eq, Show)
+
+instance Semigroup Tm where
+  x <> y =
+    case x of
+      V vv t' -> V vv (t' <> y)
+      P tm lo t' -> P tm lo (t' <> y)
+      B vv t lo t' -> B vv t lo (t' <> y)
+      St -> y
+
+instance Monoid Tm where
+  mempty = St
+
 --------------------------------------------------------------------------------
 -- Show instances
-sep = ";"
 
 instance Pretty Lo where
     pShow = \case
@@ -104,18 +110,32 @@ instance Pretty Lo where
         La -> "λ"
         Lo y -> y
 
-instance Pretty (Type String) where
+tVB :: (String,String)
+tVB = ("[","]")
+
+instance Pretty T where
     pShow x = case x of
         TCon "" -> " "
         TEmp -> "()"
-        TCon y -> getConstant y
-        TVar y -> y
-        TVec _x -> mconcat ["(", init $ mconcat $ (flip (++) ",") <$> pShow <$> _x, ")"]
-        TLoc l y -> pShow l ++ "(" ++ pShow y ++ ")"
-        t1 :=> t2 -> mconcat [pShow t1, " => ", pShow t2]
+        TCon y ->  y ^. tConstant
+        TVar y -> y ^. tVariable
+        TVec y ->
+          let
+          go = \case
+            TVec [x] -> pShow x
+            TVec [] -> ""
+            TVec (x:xs) -> pShow x <> " ; " <> go (TVec xs)
+          in
+          fst tVB <> go x <> snd tVB
+        TLoc l y -> "@" ++ pShow l ++ "(" ++ pShow y ++ ")"
+        t1 :=> t2 -> mconcat ["{", pShow t1, " => ", pShow t2, "}" ]
 
 instance Pretty Tm where
-    pShow = \case
+    pShow =
+      let
+        sep = ";"
+      in
+      \case
         B v t l t' -> mconcat [pShow l, "<", v," : ", pShow t,">",";",pShow t']
         P t l t' -> "[" ++ pShow t ++ "]" ++ pShow l ++ sep ++ pShow t'
         V v t -> v ++ sep ++ pShow t

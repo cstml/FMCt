@@ -10,7 +10,7 @@ import Control.Monad (void)
 import FMCt.Parsing.Aux
 import FMCt.Parsing.Terms
 import FMCt.Parsing.Types
-import FMCt.Syntax (Lo (..), T, Tm (..), Type (..))
+import FMCt.Syntax
 import Text.ParserCombinators.Parsec
 
 -- | Main Parsing Function. (Safe)

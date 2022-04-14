@@ -54,7 +54,7 @@ judgement =
 
 -- | Empty TypingContext
 emptyCx :: TypingContext
-emptyCx = let star = ("*", mempty :=> mempty) in Map.fromList [star]
+emptyCx = let star = ("*", TEmp :=> TEmp) in Map.fromList [star]
 
 termToDerivation :: Term -> Derivation
 termToDerivation term = undefined

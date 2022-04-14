@@ -5,6 +5,7 @@ module FMCt.Aux.ToTex (
     saveDiagram,
 ) where
 
+import Control.Lens
 import FMCt.TypeChecker.Aux
 import FMCt.Parsing (parseFMC)
 import FMCt.Syntax
@@ -78,8 +79,8 @@ instance ToTex Tm where
 instance ToTex T where
     toTex = \case
         TEmp -> " \\epsilon "
-        TCon x -> "  " ++ x ++ " "
-        TVar x -> "  " ++ x ++ " "
+        TCon x -> "  " ++  x^.tConstant ++ " "
+        TVar x -> "  " ++ x^.tVariable ++ " "
         TVec [] -> "  "
         TVec [x] -> toTex x
         TVec (x : xs) -> " ( " ++ toTex x ++ ", " ++ toTex (TVec xs) ++ " ) "
