@@ -1,11 +1,11 @@
 module FMCt.TypeChecker.NormalForm where
 
-
 -- | Converts a term into its normal form.
 -- Example:
 -- > a,l(al(b),a),c ~> a,c,l(a,al(b))
 normalForm :: T -> T
 normalForm x = undefined
+
 {-
   case x of
     TEmp -> x

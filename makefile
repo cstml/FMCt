@@ -1,5 +1,5 @@
-.PHONY: clean reformat build lint-watch compile-watch haddock-generate \
-				repl-start documentation test all-files tags mkTags
+.PHONY: clean format build lint-watch compile-watch haddock-generate repl-start	\
+				documentation test all-files tags mkTags
 
 # Build the main executable with nix
 build:
@@ -54,14 +54,26 @@ documentation:
 mkTags:
 	hasktags .
 
+
+# Extensions necessary to tell hlint about
+EXTENSIONS=-XTypeApplications -XTemplateHaskell -XImportQualifiedPost -XPatternSynonyms -XBangPatterns
+SOURCES=$$(git ls-tree -r HEAD --full-tree --name-only | grep -E '.*\.hs')
+CABAL_FILES=$$(git ls-tree -r HEAD --full-tree --name-only | grep -E '.*\.cabal')
+NIX_FILES=$$(git ls-tree -r HEAD --full-tree --name-only | grep -E '.*\.nix')
+
 # Add folder locations to the list to be reformatted.
-fourmolu-format:
+format:
 	fourmolu \
 		--mode inplace \
 		--check-idempotence\
 		-o -XTypeApplications \
 		-o -XTemplateHaskell \
 		-o -XPatternSynonyms \
-		-o -fplugin=RecordDotPreprocessor\
-	    $$(git ls-tree -r HEAD --full-tree --name-only | grep -E '.*\.hs')
+	    $(SOURCES)
+	cabal-fmt -i $(CABAL_FILES)
+	nixfmt $(NIX_FILES)
 
+lint-inplace:
+	echo $(SOURCES) | xargs -t -n 1 hlint --refactor --refactor-options="--inplace" # $(EXTENSIONS)
+
+lint-format: format lint-inplace

@@ -17,19 +17,21 @@
         additionalPckgs = with pkgs; [ nixfmt ];
 
         additionalHaskellPckgs = with pkgs.haskellPackages; [
-          cabal-install
+          apply-refact
           cabal-fmt
+          cabal-install
+          fourmolu
           ghcid
           hasktags
+          hlint
           zlib
-          hasktags
         ];
 
         project = returnShellEnv:
           pkgs.haskellPackages.developPackage {
             inherit returnShellEnv;
             name = "FMCt";
-            root = ./.;
+            root = self;
             withHoogle = true;
             modifier = drv:
               pkgs.haskell.lib.addBuildTools drv

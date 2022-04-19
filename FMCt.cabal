@@ -36,7 +36,7 @@ common evaluator-modules
     FMCt.Parsing
     FMCt.Syntax
     FMCt.TypeChecker
-    
+
 common library-modules
   hs-source-dirs: src
   other-modules:
@@ -45,9 +45,9 @@ common library-modules
     FMCt.Evaluator
     FMCt.Examples
     FMCt.Parsing
+    FMCt.Parsing.Language
     FMCt.Parsing.Terms
     FMCt.Parsing.Types
-    FMCt.Parsing.Language
     FMCt.Pretty
     FMCt.Syntax
     FMCt.TypeChecker
@@ -84,19 +84,28 @@ executable FMCt-exe
     , transformers
 
 executable evaluator
-  import: common-extensions
-  import: evaluator-modules
-  build-depends: , base , containers , data-default , lens , parsec , transformers
+  import:         common-extensions
+  import:         evaluator-modules
+  build-depends:
+    , base
+    , containers
+    , data-default
+    , lens
+    , parsec
+    , transformers
+
   hs-source-dirs: app
   main-is:        Main.hs
-    
+
 test-suite fmct-test
   import:         library-specs
   type:           exitcode-stdio-1.0
   main-is:        Main.hs
   hs-source-dirs: test
-  other-modules:  TestGenerators
-                  Generators.Parser
+  other-modules:
+    Generators.Parser
+    TestGenerators
+
   build-depends:
     , hedgehog
     , QuickCheck

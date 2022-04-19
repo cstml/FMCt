@@ -1,7 +1,7 @@
 -- | Module used for re-rexporting
 module FMCt.Web (
-    module X,
-    main,
+  module X,
+  main,
 ) where
 
 import FMCt.Web.MainWebsite as X (mainWebsite)

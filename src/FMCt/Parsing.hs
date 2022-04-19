@@ -1,8 +1,8 @@
 module FMCt.Parsing (
-    parseFMC,
-    parseType,
-    parseFMCtoString,
-    PError (..),
+  parseFMC,
+  parseType,
+  parseFMCtoString,
+  PError (..),
 ) where
 
 import qualified Control.Exception as E
@@ -15,7 +15,7 @@ import Text.ParserCombinators.Parsec
 
 -- | Main Parsing Function. (Safe)
 parseFMC :: String -> Either ParseError Tm
-parseFMC x = parse term "FMCParser" x
+parseFMC = parse term "FMCParser"
 
 -- | Utility Parsing Function used for the FMCt-Web.
 parseFMCtoString :: String -> String

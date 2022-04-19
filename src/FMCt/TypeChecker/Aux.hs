@@ -1,13 +1,14 @@
-{-#LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TemplateHaskell #-}
+
 module FMCt.TypeChecker.Aux where
 
+import Control.Lens
 import Control.Monad (join)
+import qualified Data.Map as Map
+import qualified Data.Set as Set
 import FMCt.Syntax
 import FMCt.TypeChecker.Error
 import Text.Read (readMaybe)
-import Control.Lens
-import qualified Data.Set as Set
-import qualified Data.Map as Map
 
 type Term = Tm
 
@@ -15,9 +16,10 @@ type TypingContext = Map.Map Vv T
 
 data Judgement = Judgement
   { _jContext :: TypingContext
-  , _jTerm ::  Term
+  , _jTerm :: Term
   , _jType :: T
-   } deriving (Show,Eq)
+  }
+  deriving (Show, Eq)
 
 makeLenses ''Judgement
 
@@ -25,45 +27,47 @@ makeLenses ''Judgement
 data TSubs = TSubs
   { _sFrom :: T
   , _sTo :: T
-  } deriving (Show,Eq)
+  }
+  deriving (Show, Eq)
 
 makeLenses ''TSubs
 
 data Operations
-    = Add
-    | Subtract
-    | Multiply
-    | Divide
-    | Modulus
-    | If
-    deriving (Eq, Ord)
+  = Add
+  | Subtract
+  | Multiply
+  | Divide
+  | Modulus
+  | If
+  deriving (Eq, Ord)
 
 makePrisms ''Operations
 
 instance Read Operations where
-    readsPrec _ = \case
-        "+" -> return (Add, mempty)
-        "-" -> return (Subtract, mempty)
-        "if" -> return (If, mempty)
-        "^" -> return (Multiply, mempty)
-        "%" -> return (Modulus, mempty)
-        "/" -> return (Divide, mempty)
-        i -> return (error "", i)
+  readsPrec _ = \case
+    "+" -> return (Add, mempty)
+    "-" -> return (Subtract, mempty)
+    "if" -> return (If, mempty)
+    "^" -> return (Multiply, mempty)
+    "%" -> return (Modulus, mempty)
+    "/" -> return (Divide, mempty)
+    i -> return (error "", i)
 
 instance Show Operations where
-    show = \case
-        Add -> "+"
-        Subtract -> "-"
-        If -> "if"
-        Multiply -> "^"
-        Modulus -> "%"
-        Divide -> "/"
+  show = \case
+    Add -> "+"
+    Subtract -> "-"
+    If -> "if"
+    Multiply -> "^"
+    Modulus -> "%"
+    Divide -> "/"
 
 -- | Merge contexts
 mergeCtx :: TypingContext -> TypingContext -> Either TError TypingContext
-mergeCtx ox oy = case  (Map.toList $ Map.intersection ox oy) of 
-    [] -> pure $ Map.union ox oy
-    x -> Left . ErrOverride $ "Type Conflict between: " <> show x
+mergeCtx ox oy = case Map.toList $ Map.intersection ox oy of
+  [] -> pure $ Map.union ox oy
+  x -> Left . ErrOverride $ "Type Conflict between: " <> show x
+
 {-
 -- | Normalise gets rid of empty Types at locations.
 normaliseT :: T -> T
@@ -87,13 +91,14 @@ normaliseT t
 
 splitStream :: [a] -> ([a], [a])
 splitStream x = (,) l r
-  where
-    l = snd <$> (filter (odd . fst) $ zip ([1 ..] :: [Integer]) x)
-    r = snd <$> (filter (not . odd . fst) $ zip ([1 ..] :: [Integer]) x)
+ where
+  l = snd <$> filter (odd . fst) (zip ([1 ..] :: [Integer]) x)
+  r = snd <$> filter (not . odd . fst) (zip ([1 ..] :: [Integer]) x)
 
 -- | Pre parses the Term for primitives and adds their type to the context.
 buildContext :: TypingContext -> Term -> Either TError TypingContext
 buildContext eCtx = undefined
+
 {-
     let
       i = TCon "Int"
@@ -134,16 +139,16 @@ buildContext eCtx = undefined
             B _ _ _ t -> buildContext eCtx t
             St -> pure eCtx
 -}
-  
+
 freshTypeVar :: [T]
 freshTypeVar =
-    (TVar . review tVariable)
-        <$> [ [x] <> show y
-            | y <- [1 ..] :: [Integer]
-            , x <- ['a' .. 'z']
-            ]
+  TVar . review tVariable
+    <$> [ [x] <> show y
+        | y <- [1 ..] :: [Integer]
+        , x <- ['a' .. 'z']
+        ]
 
 freshVarTypes :: [T]
 freshVarTypes = zipWith (:=>) ls rs
-  where
-    (ls, rs) = splitStream freshTypeVar
+ where
+  (ls, rs) = splitStream freshTypeVar

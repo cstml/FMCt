@@ -1,37 +1,36 @@
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE TypeSynonymInstances #-}
 
 module FMCt.Aux.ToTex (
-    saveDiagram,
+  saveDiagram,
 ) where
 
 import Control.Lens
-import FMCt.TypeChecker.Aux
+import Control.Monad
 import FMCt.Parsing (parseFMC)
 import FMCt.Syntax
 import FMCt.TypeChecker
+import FMCt.TypeChecker.Aux
 import System.IO (writeFile)
-import Control.Monad
 
 -- | Saves diagram to a predefined location - for my dissertation. Not useful for
 -- you.
 writeLocally :: String -> String -> IO ()
-writeLocally title str =
-    writeFile
-        ( "../../deliverables/02-dissertation/tex/files/diagrams/"
-            ++ title
-            ++ ".tex"
-        )
-        str
+writeLocally title =
+  writeFile
+    ( "../../deliverables/02-dissertation/tex/files/diagrams/"
+        ++ title
+        ++ ".tex"
+    )
 
 -- | Saves diagram locally to be used in dissertation
 saveDiagram ::
-    -- | Diagram name
-    String ->
-    -- | Term to be Parsed
-    String ->
-    IO ()
-saveDiagram diagName str = undefined 
+  -- | Diagram name
+  String ->
+  -- | Term to be Parsed
+  String ->
+  IO ()
+saveDiagram diagName str = undefined
+
 --  either (print . show) (writeLocally diagName . _math . toTex) . derive . either (const St) id $ parseFMC str
 
 _term :: String -> String
@@ -50,52 +49,52 @@ _dfrac2 :: String -> String -> String -> String
 _dfrac2 l r b = "\\dfrac{ " ++ l ++ " \\hspace{1cm} " ++ r ++ "}{" ++ b ++ "}"
 
 class ToTex a where
-    toTex :: a -> String
+  toTex :: a -> String
 
 instance ToTex Lo where
-    toTex =
-        _term . \case
-            La -> " \\lambda "
-            Out -> "out "
-            In -> "in "
-            Rnd -> "rnd "
-            Nd -> "nd "
-            Ho -> " \\gamma "
-            Lo x -> x ++ " "
+  toTex =
+    _term . \case
+      La -> " \\lambda "
+      Out -> "out "
+      In -> "in "
+      Rnd -> "rnd "
+      Nd -> "nd "
+      Ho -> " \\gamma "
+      Lo x -> x ++ " "
 
 instance ToTex Tm where
-    toTex = \case
-        St -> _term "*"
-        V bi n -> _term bi ++ _term " ; " ++ toTex n
-        P t lo nt ->
-            if lo /= La
-                then _term " [ " ++ toTex t ++ _term " ] " ++ toTex lo ++ _term " ; " ++ toTex nt
-                else _term " [ " ++ toTex t ++ _term " ] " ++ _term " ; " ++ toTex nt
-        B bi ty lo nt ->
-            if lo /= La
-                then toTex lo ++ _term " < " ++ _term bi ++ _term " : " ++ (_type . toTex) ty ++ _term ">" ++ _term " ; " ++ toTex nt
-                else _term " < " ++ _term bi ++ _term " : " ++ (_type . toTex) ty ++ _term ">" ++ _term " ; " ++ toTex nt
+  toTex = \case
+    St -> _term "*"
+    V bi n -> _term bi ++ _term " ; " ++ toTex n
+    P t lo nt ->
+      if lo /= La
+        then _term " [ " ++ toTex t ++ _term " ] " ++ toTex lo ++ _term " ; " ++ toTex nt
+        else _term " [ " ++ toTex t ++ _term " ] " ++ _term " ; " ++ toTex nt
+    B bi ty lo nt ->
+      if lo /= La
+        then toTex lo ++ _term " < " ++ _term bi ++ _term " : " ++ (_type . toTex) ty ++ _term ">" ++ _term " ; " ++ toTex nt
+        else _term " < " ++ _term bi ++ _term " : " ++ (_type . toTex) ty ++ _term ">" ++ _term " ; " ++ toTex nt
 
 instance ToTex T where
-    toTex = \case
-        TEmp -> " \\epsilon "
-        TCon x -> "  " ++  x^.tConstant ++ " "
-        TVar x -> "  " ++ x^.tVariable ++ " "
-        TVec [] -> "  "
-        TVec [x] -> toTex x
-        TVec (x : xs) -> " ( " ++ toTex x ++ ", " ++ toTex (TVec xs) ++ " ) "
-        TLoc l t -> toTex l ++ "( " ++ toTex t ++ " )"
-        t1 :=> t2 -> toTex t1 ++ " \\To " ++ toTex t2
+  toTex = \case
+    TEmp -> " \\epsilon "
+    TCon x -> "  " ++ x ^. tConstant ++ " "
+    TVar x -> "  " ++ x ^. tVariable ++ " "
+    TVec [] -> "  "
+    TVec [x] -> toTex x
+    TVec (x : xs) -> " ( " ++ toTex x ++ ", " ++ toTex (TVec xs) ++ " ) "
+    TLoc l t -> toTex l ++ "( " ++ toTex t ++ " )"
+    t1 :=> t2 -> toTex t1 ++ " \\To " ++ toTex t2
 
 instance ToTex TypingContext where
-    toTex _ = "\\Gamma "
+  toTex _ = "\\Gamma "
 
 instance ToTex Judgement where
-    toTex (Judgement ctx term t) = toTex ctx ++ "\\vdash " ++ toTex term ++ ":" ++ _type (toTex t)
+  toTex (Judgement ctx term t) = toTex ctx ++ "\\vdash " ++ toTex term ++ ":" ++ _type (toTex t)
 
 instance ToTex Derivation where
-    toTex = \case
-        Star j -> _dfrac mempty (toTex j)
-        Variable j d -> _dfrac (toTex d) (toTex j)
-        Abstraction j d -> _dfrac (toTex d) (toTex j)
-        Application j p d -> _dfrac2 (toTex p) (toTex d) (toTex j)
+  toTex = \case
+    Star j -> _dfrac mempty (toTex j)
+    Variable j d -> _dfrac (toTex d) (toTex j)
+    Abstraction j d -> _dfrac (toTex d) (toTex j)
+    Application j p d -> _dfrac2 (toTex p) (toTex d) (toTex j)

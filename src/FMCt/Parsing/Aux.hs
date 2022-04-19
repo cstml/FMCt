@@ -5,9 +5,9 @@ import Control.Monad (void)
 import Text.ParserCombinators.Parsec
 
 data PError
-    = PTermErr String
-    | PTypeErr String
-    deriving (Show)
+  = PTermErr String
+  | PTypeErr String
+  deriving (Show)
 
 instance Exception PError
 
