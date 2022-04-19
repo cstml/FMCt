@@ -48,11 +48,14 @@ constantType = do
 -- >> In(Int)
 -- >> In(Int=>Int)
 locationType :: Parser T
-locationType = do
-  _ <- char '@'
-  l <- location
-  t <- between (spaces >> char '(') (spaces >> char ')') termType
-  return $ TLoc l t
+locationType = explicitLocation <|> homeLocation
+  where
+    explicitLocation = do
+      l <- location
+      t <- between (spaces >> char '(') (spaces >> char ')') termType
+      return $ TLoc l t
+      
+    homeLocation = TLoc La <$> termType
 
 -- | Vector Types are a list of types, between square brackets.
 --

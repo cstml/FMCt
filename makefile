@@ -54,7 +54,6 @@ documentation:
 mkTags:
 	hasktags .
 
-
 # Extensions necessary to tell hlint about
 EXTENSIONS=-XTypeApplications -XTemplateHaskell -XImportQualifiedPost -XPatternSynonyms -XBangPatterns
 SOURCES=$$(git ls-tree -r HEAD --full-tree --name-only | grep -E '.*\.hs')

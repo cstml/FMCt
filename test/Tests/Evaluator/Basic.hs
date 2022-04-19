@@ -10,16 +10,35 @@ evaluateTest =
   testGroup
     "All Evaluator Tests"
     [ star
+    , simpleBinds
     ]
-
-star :: TestTree
-star =
-  let t term res =
-        let pTerm = parseFMC term
-         in testCase (show $ pShow <$> pTerm) $ assertEqual term (eval <$> pTerm) (Right res)
-   in testGroup "Trivial Star Evaluation" $
-        uncurry t
+  where
+    t term res =
+      let pTerm = parseFMC term
+      in testCase (show $ pShow <$> pTerm) $ assertEqual term (eval <$> pTerm) (Right res)
+      
+    star =
+      testGroup "Trivial Star Evaluation" $ (uncurry t)
           <$> [ ("*", mempty)
               , ("[*]@a;*", memory . at (Lo "a") ?~ [St] $ mempty)
-              , ("[*];*", memory . at La ?~ [St] $ mempty)
+              , ("[*];*", mempty & memory . at La ?~ [St] )
               ]
+      
+    simpleBinds =
+      testGroup "Simple Binds" $
+      (uncurry t) <$>
+      [ ( "[x];<y>"
+        , mempty &
+          ( (binds . at "y" ?~  V "x" St)
+            . (memory . at La ?~ [])
+          )
+        )
+      , ( "[x]@x;@x<y>"
+        , mempty &
+          ( (binds . at "y" ?~  V "x" St)
+            . (memory . at (Lo "x") ?~ [])
+          )
+        )     
+      ]
+          
+    

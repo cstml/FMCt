@@ -35,7 +35,7 @@ instance Arbitrary T where
       , pure TEmp
       ]
   shrink x = case x of
-    TVec (x : xs) -> [x, TVec xs]
+    TVec (x : xs) -> []
     _ -> []
 
 instance Arbitrary Tm where

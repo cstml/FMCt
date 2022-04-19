@@ -8,7 +8,7 @@ COPY ./ ./app
 WORKDIR  ./app
 
 # Run nix-build
-RUN nix-build
+RUN nix build --extra-experimental-features nix-command --extra-experimental-features flakes
 
 # Set a port
 ENV PORT=8080

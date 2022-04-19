@@ -106,11 +106,11 @@ instance Monoid Tm where
 -- Show instances
 
 instance Pretty Lo where
-  pShow = \case
-    Out -> "out"
-    In -> "in"
-    Rnd -> "rnd"
-    Nd -> "nd"
+  pShow = ("@"<>) . \case
+    Out -> "Out"
+    In -> "In"
+    Rnd -> "Rnd"
+    Nd -> "Nd"
     Ho -> "γ"
     La -> "λ"
     Lo y -> y
@@ -130,7 +130,7 @@ instance Pretty T where
             TVec [] -> ""
             TVec (x : xs) -> pShow x <> " ; " <> go (TVec xs)
        in fst tVB <> go x <> snd tVB
-    TLoc l y -> "@" ++ pShow l ++ "(" ++ pShow y ++ ")"
+    TLoc l y -> pShow l ++ "(" ++ pShow y ++ ")"
     t1 :=> t2 -> mconcat ["{", pShow t1, " => ", pShow t2, "}"]
 
 instance Pretty Tm where
@@ -138,6 +138,6 @@ instance Pretty Tm where
     let sep = ";"
      in \case
           B v t l t' -> mconcat [pShow l, "<", v, " : ", pShow t, ">", ";", pShow t']
-          P t l t' -> mconcat ["[", pShow t, "]", "@", pShow l, sep, pShow t']
+          P t l t' -> mconcat ["[", pShow t, "]", pShow l, sep, pShow t']
           V v t -> mconcat [v, sep, pShow t]
           St -> "*"
