@@ -1,8 +1,10 @@
 # FMCt
 
-Typed Functional Machine Calculus.
+_Project archived, and used as inspiration for the development of a different
+take on a similar, yet different language:
+[Space](https://github.com/cstml/Space)._
 
-The project is in active development, and there will be many breaking changes.
+Typed Functional Machine Calculus.
 
 
 ## Apps Available:
@@ -56,4 +58,5 @@ To create the documentation you need to run `make documentation`.
 The FMCt-web is a web interface for the FMCt where people can try out the
 language and its type checker without having to install anything.
 
-There's also a CI/CD which deploys the main branch to [this website](https://fmct-web.herokuapp.com/).
+There's also a CI/CD which deploys the main branch to [this
+website](https://fmct-web.herokuapp.com/).
